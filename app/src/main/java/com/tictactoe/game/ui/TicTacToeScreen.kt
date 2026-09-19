@@ -1,5 +1,8 @@
 package com.tictactoe.game.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,13 +37,17 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tictactoe.game.audio.SoundEffects
+import com.tictactoe.game.model.AiDifficulty
 import com.tictactoe.game.model.BoardTheme
 import com.tictactoe.game.model.CameraPreset
 import com.tictactoe.game.model.GameIntent
+import com.tictactoe.game.model.GameMode
 import com.tictactoe.game.model.GameStatus
 import com.tictactoe.game.model.GameUiState
 import com.tictactoe.game.model.Player
+import com.tictactoe.game.ui.components.AiVectorIcon
 import com.tictactoe.game.ui.components.BorderBeamContainer
+import com.tictactoe.game.ui.components.DevHudVectorIcon
 import com.tictactoe.game.ui.components.FlameStreakIcon
 import com.tictactoe.game.ui.components.HapticsVectorIcon
 import com.tictactoe.game.ui.components.MagicMarqueeBar
@@ -88,14 +95,15 @@ fun TicTacToeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 1. Editorial Header with Vector Icons
+            // 1. Editorial Header with Vector Icons & Dev HUD toggle
             EditorialHeader(
                 isSoundEnabled = state.isSoundEnabled,
                 isHapticsEnabled = state.isHapticsEnabled,
+                showDevHud = state.showDevHud,
                 currentTheme = state.theme,
                 onToggleSound = {
                     soundEffects.playClick()
@@ -105,26 +113,50 @@ fun TicTacToeScreen(
                     soundEffects.vibrate(30)
                     viewModel.processIntent(GameIntent.ToggleHaptics)
                 },
+                onToggleDevHud = {
+                    soundEffects.playClick()
+                    viewModel.processIntent(GameIntent.ToggleDevHud)
+                },
                 onSelectTheme = { theme ->
                     soundEffects.playClick()
                     viewModel.processIntent(GameIntent.SetTheme(theme))
                 }
             )
 
-            // 2. Magic UI Marquee Live Commentary Ticker
+            // 2. Dev HUD Telemetry Bar (Conditional)
+            if (state.showDevHud) {
+                DevHudTelemetryBar(state = state)
+            }
+
+            // 3. Game Mode & AI Difficulty Switcher
+            GameModeSelectorBar(
+                currentMode = state.gameMode,
+                currentDifficulty = state.aiDifficulty,
+                theme = state.theme,
+                onSelectMode = { mode ->
+                    soundEffects.playClick()
+                    viewModel.processIntent(GameIntent.SetGameMode(mode))
+                },
+                onSelectDifficulty = { diff ->
+                    soundEffects.playClick()
+                    viewModel.processIntent(GameIntent.SetAiDifficulty(diff))
+                }
+            )
+
+            // 4. Magic UI Marquee Live Commentary Ticker
             MagicMarqueeBar(
                 text = state.commentaryText,
                 accentColor = state.theme.xColor,
-                modifier = Modifier.padding(vertical = 2.dp)
+                modifier = Modifier.padding(vertical = 1.dp)
             )
 
-            // 3. Bento Scoreboard with Vector Flame Streak Counters
+            // 5. Bento Scoreboard with Vector Flame Streak Counters
             BentoScoreboard(state = state)
 
-            // 4. Active Turn Card with Magic UI Border Beam
+            // 6. Active Turn Card with Magic UI Border Beam
             ActiveTurnCard(state = state)
 
-            // 5. Camera Presets & Undo Button Row
+            // 7. Camera Presets & Undo Button Row
             ControlsRow(
                 currentPreset = state.cameraPreset,
                 canUndo = state.canUndo,
@@ -140,11 +172,11 @@ fun TicTacToeScreen(
                 }
             )
 
-            // 6. Real 3D Responsive Kinetic Board
+            // 8. Real 3D Responsive Kinetic Board
             Interactive3DBoard(
                 state = state,
                 onCellClick = { index ->
-                    if (state.board[index] == null && !state.isFinished) {
+                    if (state.board[index] == null && !state.isFinished && !state.isAiThinking) {
                         if (state.isSoundEnabled) soundEffects.playMove(state.currentPlayer == Player.X)
                         if (state.isHapticsEnabled) soundEffects.vibrate(35)
                         viewModel.processIntent(GameIntent.CellClick(index))
@@ -156,16 +188,16 @@ fun TicTacToeScreen(
                 }
             )
 
-            // 7. Tactical Control Hint
+            // 9. Tactical Control Hint
             Text(
-                text = "???????? 3D ???? . ??????? ???????: ????? ??????",
-                fontSize = 10.sp,
+                text = "ВРАЩАЙТЕ 3D ПОЛЕ • ДВОЙНОЕ НАЖАТИЕ: СБРОС КАМЕРЫ",
+                fontSize = 9.5.sp,
                 fontFamily = FontFamily.Monospace,
                 color = TextMuted,
-                letterSpacing = 1.sp
+                letterSpacing = 0.8.sp
             )
 
-            // 8. Bottom Action Bar with Magic UI Shimmer Button
+            // 10. Bottom Action Bar with Magic UI Shimmer Button
             BottomActionBar(
                 onNewGame = {
                     if (state.isSoundEnabled) soundEffects.playClick()
@@ -191,9 +223,11 @@ fun TicTacToeScreen(
 private fun EditorialHeader(
     isSoundEnabled: Boolean,
     isHapticsEnabled: Boolean,
+    showDevHud: Boolean,
     currentTheme: BoardTheme,
     onToggleSound: () -> Unit,
     onToggleHaptics: () -> Unit,
+    onToggleDevHud: () -> Unit,
     onSelectTheme: (BoardTheme) -> Unit
 ) {
     Row(
@@ -212,7 +246,7 @@ private fun EditorialHeader(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "????????-??????",
+                text = "Крестики-Нолики",
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary
@@ -258,6 +292,23 @@ private fun EditorialHeader(
                 }
             }
 
+            // Dev HUD Toggle Pill
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (showDevHud) SurfaceCard.copy(alpha = 0.95f) else SurfaceCard)
+                    .border(1.dp, if (showDevHud) Color(0xFF38BDF8) else BorderSubtle, RoundedCornerShape(10.dp))
+                    .clickable(onClick = onToggleDevHud)
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                DevHudVectorIcon(
+                    isActive = showDevHud,
+                    color = if (showDevHud) Color(0xFF38BDF8) else TextMuted,
+                    size = 15.dp
+                )
+            }
+
             // Sound Toggle Pill
             Box(
                 modifier = Modifier
@@ -265,7 +316,7 @@ private fun EditorialHeader(
                     .background(SurfaceCard)
                     .border(1.dp, BorderSubtle, RoundedCornerShape(10.dp))
                     .clickable(onClick = onToggleSound)
-                    .padding(horizontal = 9.dp, vertical = 8.dp),
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 SoundVectorIcon(isEnabled = isSoundEnabled, color = if (isSoundEnabled) TextPrimary else TextMuted, size = 15.dp)
@@ -278,10 +329,149 @@ private fun EditorialHeader(
                     .background(SurfaceCard)
                     .border(1.dp, BorderSubtle, RoundedCornerShape(10.dp))
                     .clickable(onClick = onToggleHaptics)
-                    .padding(horizontal = 9.dp, vertical = 8.dp),
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 HapticsVectorIcon(isEnabled = isHapticsEnabled, color = if (isHapticsEnabled) TextPrimary else TextMuted, size = 15.dp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DevHudTelemetryBar(state: GameUiState) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xE60A0A0F))
+            .border(1.dp, Color(0x3338BDF8), RoundedCornerShape(8.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "FPS: ${state.currentFps}",
+            fontSize = 9.5.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF10B981)
+        )
+        Text(
+            text = "FRAME: ${state.frameTimeMs}ms",
+            fontSize = 9.5.sp,
+            fontFamily = FontFamily.Monospace,
+            color = Color(0xFF38BDF8)
+        )
+        Text(
+            text = "POLYS: ${state.activePolygons}",
+            fontSize = 9.5.sp,
+            fontFamily = FontFamily.Monospace,
+            color = Color(0xFFFACC15)
+        )
+        Text(
+            text = "GC: 0 B/f",
+            fontSize = 9.5.sp,
+            fontFamily = FontFamily.Monospace,
+            color = Color(0xFFA78BFA)
+        )
+    }
+}
+
+@Composable
+private fun GameModeSelectorBar(
+    currentMode: GameMode,
+    currentDifficulty: AiDifficulty,
+    theme: BoardTheme,
+    onSelectMode: (GameMode) -> Unit,
+    onSelectDifficulty: (AiDifficulty) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Mode Switch Segment Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(SurfaceCard)
+                .border(1.dp, BorderSubtle, RoundedCornerShape(10.dp))
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            GameMode.values().forEach { mode ->
+                val isSelected = mode == currentMode
+                val bg = if (isSelected) theme.xColor.copy(alpha = 0.2f) else Color.Transparent
+                val border = if (isSelected) theme.xColor.copy(alpha = 0.6f) else Color.Transparent
+                val textColor = if (isSelected) TextPrimary else TextMuted
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(bg)
+                        .border(1.dp, border, RoundedCornerShape(8.dp))
+                        .clickable { onSelectMode(mode) }
+                        .padding(vertical = 5.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (mode == GameMode.VS_AI) {
+                            AiVectorIcon(color = if (isSelected) theme.xColor else TextMuted, size = 12.dp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                        Text(
+                            text = mode.label,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = textColor,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        // Difficulty Selector Badges (Visible when VS_AI)
+        AnimatedVisibility(
+            visible = currentMode == GameMode.VS_AI,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                AiDifficulty.values().forEach { diff ->
+                    val isSelected = diff == currentDifficulty
+                    val bg = if (isSelected) SurfaceCard.copy(alpha = 0.95f) else Color.Transparent
+                    val border = if (isSelected) theme.oColor.copy(alpha = 0.6f) else BorderSubtle.copy(alpha = 0.4f)
+                    val textColor = if (isSelected) theme.oColor else TextMuted
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(bg)
+                            .border(1.dp, border, RoundedCornerShape(6.dp))
+                            .clickable { onSelectDifficulty(diff) }
+                            .padding(vertical = 3.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = diff.label,
+                            fontSize = 9.5.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = textColor,
+                            letterSpacing = 0.3.sp
+                        )
+                    }
+                }
             }
         }
     }
@@ -319,8 +509,8 @@ private fun ControlsRow(
                     Text(
                         text = when (preset) {
                             CameraPreset.ORBIT -> "3D ORBIT"
-                            CameraPreset.ISOMETRIC -> "?????????"
-                            CameraPreset.TOP_DOWN -> "??????"
+                            CameraPreset.ISOMETRIC -> "ИЗОМЕТРИЯ"
+                            CameraPreset.TOP_DOWN -> "СВЕРХУ"
                         },
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
@@ -345,7 +535,7 @@ private fun ControlsRow(
                     UndoVectorIcon(color = theme.xColor, size = 12.dp)
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "??????",
+                        text = "ОТМЕНА",
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -359,13 +549,16 @@ private fun ControlsRow(
 
 @Composable
 private fun BentoScoreboard(state: GameUiState) {
+    val labelX = if (state.gameMode == GameMode.VS_AI) "ВЫ (X)" else "PLAYER X"
+    val labelO = if (state.gameMode == GameMode.VS_AI) "3D ИИ (O)" else "PLAYER O"
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         BentoStatCard(
             modifier = Modifier.weight(1f),
-            label = "PLAYER X",
+            label = labelX,
             score = state.scores.xWins,
             streak = state.winStreakX,
             accentColor = state.theme.xColor,
@@ -375,7 +568,7 @@ private fun BentoScoreboard(state: GameUiState) {
 
         BentoStatCard(
             modifier = Modifier.weight(0.82f),
-            label = "?????",
+            label = "НИЧЬИ",
             score = state.scores.draws,
             streak = 0,
             accentColor = TextMuted,
@@ -385,7 +578,7 @@ private fun BentoScoreboard(state: GameUiState) {
 
         BentoStatCard(
             modifier = Modifier.weight(1f),
-            label = "PLAYER O",
+            label = labelO,
             score = state.scores.oWins,
             streak = state.winStreakO,
             accentColor = state.theme.oColor,
@@ -454,17 +647,25 @@ private fun BentoStatCard(
 private fun ActiveTurnCard(state: GameUiState) {
     val (statusText, statusColor, beamColor) = when (val s = state.status) {
         is GameStatus.InProgress -> {
-            if (state.currentPlayer == Player.X) {
-                Triple("???: ????? 1 (X)", state.theme.xColor, state.theme.xColor.copy(alpha = 0.5f))
+            if (state.isAiThinking) {
+                Triple("ИИ ДУМАЕТ...", state.theme.oColor, state.theme.oColor.copy(alpha = 0.65f))
+            } else if (state.currentPlayer == Player.X) {
+                val txt = if (state.gameMode == GameMode.VS_AI) "ВАШ ХОД (X)" else "ХОД: ИГРОК 1 (X)"
+                Triple(txt, state.theme.xColor, state.theme.xColor.copy(alpha = 0.5f))
             } else {
-                Triple("???: ????? 2 (O)", state.theme.oColor, state.theme.oColor.copy(alpha = 0.5f))
+                val txt = if (state.gameMode == GameMode.VS_AI) "ХОД ИИ (O)" else "ХОД: ИГРОК 2 (O)"
+                Triple(txt, state.theme.oColor, state.theme.oColor.copy(alpha = 0.5f))
             }
         }
         is GameStatus.Won -> {
-            val winnerName = if (s.winner == Player.X) "????? 1 (X)" else "????? 2 (O)"
-            Triple("??????: $winnerName", state.theme.victoryColor, state.theme.victoryColor.copy(alpha = 0.65f))
+            val winnerName = if (state.gameMode == GameMode.VS_AI) {
+                if (s.winner == Player.X) "ВЫ (X)" else "ГРАНДМАСТЕР ИИ (O)"
+            } else {
+                if (s.winner == Player.X) "ИГРОК 1 (X)" else "ИГРОК 2 (O)"
+            }
+            Triple("ПОБЕДА: $winnerName", state.theme.victoryColor, state.theme.victoryColor.copy(alpha = 0.65f))
         }
-        GameStatus.Draw -> Triple("?????? ?????", TextSecondary, TextMuted)
+        GameStatus.Draw -> Triple("БОЕВАЯ НИЧЬЯ", TextSecondary, TextMuted)
     }
 
     BorderBeamContainer(
@@ -479,7 +680,7 @@ private fun ActiveTurnCard(state: GameUiState) {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(SurfaceCard)
-                .padding(vertical = 9.dp, horizontal = 14.dp),
+                .padding(vertical = 8.dp, horizontal = 14.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(
@@ -497,7 +698,7 @@ private fun ActiveTurnCard(state: GameUiState) {
                 Text(
                     text = statusText,
                     color = statusColor,
-                    fontSize = 14.sp,
+                    fontSize = 13.5.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp
@@ -519,12 +720,12 @@ private fun BottomActionBar(
         ShimmerButton(
             onClick = onNewGame,
             shape = RoundedCornerShape(14.dp),
-            height = 50.dp
+            height = 48.dp
         ) {
             Text(
-                text = "????? ????",
+                text = "НОВАЯ ИГРА",
                 letterSpacing = 1.5.sp,
-                fontSize = 15.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Black,
                 color = TextPrimary
             )
@@ -534,8 +735,8 @@ private fun BottomActionBar(
 
         TextButton(onClick = onResetScore) {
             Text(
-                text = "???????? ????",
-                fontSize = 12.sp,
+                text = "Сбросить счёт",
+                fontSize = 11.5.sp,
                 fontWeight = FontWeight.Medium,
                 color = TextMuted
             )

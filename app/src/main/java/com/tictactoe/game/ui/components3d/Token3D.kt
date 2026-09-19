@@ -13,44 +13,44 @@ import kotlin.math.sin
 
 object Token3DGeometry {
 
+    private const val SEGMENTS = 32
+    private val cosTable = FloatArray(SEGMENTS) { i -> cos(2f * PI.toFloat() * i / SEGMENTS) }
+    private val sinTable = FloatArray(SEGMENTS) { i -> sin(2f * PI.toFloat() * i / SEGMENTS) }
+    private val midCosTable = FloatArray(SEGMENTS) { i -> cos(2f * PI.toFloat() * (i + 0.5f) / SEGMENTS) }
+    private val midSinTable = FloatArray(SEGMENTS) { i -> sin(2f * PI.toFloat() * (i + 0.5f) / SEGMENTS) }
+
     /**
      * Generates a 3D mesh for the 'X' token.
      * Consists of two intersecting 3D rectangular bars with beveled faces and metallic sheen.
      */
     fun createXMesh(scale: Float = 36f, depth: Float = 8.5f, color: Color): List<PolygonFace> {
-        val faces = mutableListOf<PolygonFace>()
+        val faces = ArrayList<PolygonFace>(12)
         val halfW = scale * 0.22f
         val halfL = scale * 0.86f
         val halfD = depth
 
-        // Create 3D bar aligned with diagonal 1
         faces.addAll(createRotatedBox(halfW, halfL, halfD, PI.toFloat() / 4f, color))
-        // Create 3D bar aligned with diagonal 2
         faces.addAll(createRotatedBox(halfW, halfL, halfD, -PI.toFloat() / 4f, color))
 
         return faces
     }
 
     /**
-     * Generates a 3D mesh for the 'O' token.
-     * Consists of an extruded 32-segment beveled cylindrical ring for buttery smooth curvature.
+     * Generates an optimized 32-segment beveled torus mesh with precalculated trigonometric lookup tables.
      */
     fun createOMesh(outerRadius: Float = 30f, innerRadius: Float = 17f, depth: Float = 8.5f, color: Color): List<PolygonFace> {
-        val faces = mutableListOf<PolygonFace>()
-        val segments = 32
+        val faces = ArrayList<PolygonFace>(SEGMENTS * 3)
         val halfD = depth
 
-        val outerPoints = (0 until segments).map { i ->
-            val angle = 2f * PI.toFloat() * i / segments
-            Vec3(cos(angle) * outerRadius, sin(angle) * outerRadius, 0f)
+        val outerPoints = Array(SEGMENTS) { i ->
+            Vec3(cosTable[i] * outerRadius, sinTable[i] * outerRadius, 0f)
         }
-        val innerPoints = (0 until segments).map { i ->
-            val angle = 2f * PI.toFloat() * i / segments
-            Vec3(cos(angle) * innerRadius, sin(angle) * innerRadius, 0f)
+        val innerPoints = Array(SEGMENTS) { i ->
+            Vec3(cosTable[i] * innerRadius, sinTable[i] * innerRadius, 0f)
         }
 
-        for (i in 0 until segments) {
-            val next = (i + 1) % segments
+        for (i in 0 until SEGMENTS) {
+            val next = (i + 1) % SEGMENTS
 
             // Top front face quad (+Z)
             faces.add(
@@ -69,8 +69,7 @@ object Token3DGeometry {
             )
 
             // Outer wall quad
-            val midAngle = 2f * PI.toFloat() * (i + 0.5f) / segments
-            val outerNormal = Vec3(cos(midAngle), sin(midAngle), 0f)
+            val outerNormal = Vec3(midCosTable[i], midSinTable[i], 0f)
             faces.add(
                 PolygonFace(
                     vertices = listOf(
@@ -87,7 +86,7 @@ object Token3DGeometry {
             )
 
             // Inner wall quad
-            val innerNormal = Vec3(-cos(midAngle), -sin(midAngle), 0f)
+            val innerNormal = Vec3(-midCosTable[i], -midSinTable[i], 0f)
             faces.add(
                 PolygonFace(
                     vertices = listOf(
@@ -109,29 +108,30 @@ object Token3DGeometry {
 
     private fun createRotatedBox(halfW: Float, halfL: Float, halfD: Float, angleZ: Float, color: Color): List<PolygonFace> {
         val baseVertices = listOf(
-            Vec3(-halfW, -halfL, halfD),  // 0
-            Vec3(halfW, -halfL, halfD),   // 1
-            Vec3(halfW, halfL, halfD),    // 2
-            Vec3(-halfW, halfL, halfD),   // 3
-            Vec3(-halfW, -halfL, -halfD), // 4
-            Vec3(halfW, -halfL, -halfD),  // 5
-            Vec3(halfW, halfL, -halfD),   // 6
-            Vec3(-halfW, halfL, -halfD)   // 7
+            Vec3(-halfW, -halfL, halfD),
+            Vec3(halfW, -halfL, halfD),
+            Vec3(halfW, halfL, halfD),
+            Vec3(-halfW, halfL, halfD),
+            Vec3(-halfW, -halfL, -halfD),
+            Vec3(halfW, -halfL, -halfD),
+            Vec3(halfW, halfL, -halfD),
+            Vec3(-halfW, halfL, -halfD)
         ).map { it.rotateZ(angleZ) }
 
+        val normZ = Vec3(0f, 0f, 1f).rotateZ(angleZ)
+        val normNegZ = Vec3(0f, 0f, -1f).rotateZ(angleZ)
+        val normY = Vec3(0f, 1f, 0f).rotateZ(angleZ)
+        val normNegY = Vec3(0f, -1f, 0f).rotateZ(angleZ)
+        val normX = Vec3(1f, 0f, 0f).rotateZ(angleZ)
+        val normNegX = Vec3(-1f, 0f, 0f).rotateZ(angleZ)
+
         return listOf(
-            // Top (+Z)
-            PolygonFace(listOf(baseVertices[0], baseVertices[1], baseVertices[2], baseVertices[3]), Vec3(0f, 0f, 1f).rotateZ(angleZ), color, metallic = 0.65f, shininess = 52f),
-            // Bottom (-Z)
-            PolygonFace(listOf(baseVertices[5], baseVertices[4], baseVertices[7], baseVertices[6]), Vec3(0f, 0f, -1f).rotateZ(angleZ), color, metallic = 0.65f, shininess = 52f),
-            // Front (+Y)
-            PolygonFace(listOf(baseVertices[3], baseVertices[2], baseVertices[6], baseVertices[7]), Vec3(0f, 1f, 0f).rotateZ(angleZ), color, metallic = 0.65f, shininess = 52f),
-            // Back (-Y)
-            PolygonFace(listOf(baseVertices[4], baseVertices[5], baseVertices[1], baseVertices[0]), Vec3(0f, -1f, 0f).rotateZ(angleZ), color, metallic = 0.65f, shininess = 52f),
-            // Right (+X)
-            PolygonFace(listOf(baseVertices[1], baseVertices[5], baseVertices[6], baseVertices[2]), Vec3(1f, 0f, 0f).rotateZ(angleZ), color, metallic = 0.65f, shininess = 52f),
-            // Left (-X)
-            PolygonFace(listOf(baseVertices[4], baseVertices[0], baseVertices[3], baseVertices[7]), Vec3(-1f, 0f, 0f).rotateZ(angleZ), color, metallic = 0.65f, shininess = 52f)
+            PolygonFace(listOf(baseVertices[0], baseVertices[1], baseVertices[2], baseVertices[3]), normZ, color, 0.65f, 52f),
+            PolygonFace(listOf(baseVertices[5], baseVertices[4], baseVertices[7], baseVertices[6]), normNegZ, color, 0.65f, 52f),
+            PolygonFace(listOf(baseVertices[3], baseVertices[2], baseVertices[6], baseVertices[7]), normY, color, 0.65f, 52f),
+            PolygonFace(listOf(baseVertices[4], baseVertices[5], baseVertices[1], baseVertices[0]), normNegY, color, 0.65f, 52f),
+            PolygonFace(listOf(baseVertices[1], baseVertices[5], baseVertices[6], baseVertices[2]), normX, color, 0.65f, 52f),
+            PolygonFace(listOf(baseVertices[4], baseVertices[0], baseVertices[3], baseVertices[7]), normNegX, color, 0.65f, 52f)
         )
     }
 }
@@ -165,7 +165,7 @@ fun DrawScope.render3DToken(
         val edgeColor: Color
     )
 
-    val transformedFaces = mutableListOf<TransformedFace>()
+    val transformedFaces = ArrayList<TransformedFace>(mesh.size)
 
     mesh.forEach { face ->
         val transformedNormal = face.normal.rotate(rxRad = rotX, ryRad = rotY, rzRad = rotZ).normalize()
@@ -189,7 +189,6 @@ fun DrawScope.render3DToken(
         }
     }
 
-    // Painter's algorithm: sort farthest to nearest
     transformedFaces.sortByDescending { it.avgDepth }
 
     transformedFaces.forEach { face ->

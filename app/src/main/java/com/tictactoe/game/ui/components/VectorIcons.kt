@@ -227,3 +227,90 @@ fun FlameStreakIcon(
         drawPath(flame, color, style = Fill)
     }
 }
+
+@Composable
+fun AiVectorIcon(
+    color: Color = Color.White,
+    size: Dp = 14.dp,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+
+        // Chip central square
+        val chipRect = Path().apply {
+            addRoundRect(
+                androidx.compose.ui.geometry.RoundRect(
+                    left = w * 0.28f,
+                    top = h * 0.28f,
+                    right = w * 0.72f,
+                    bottom = h * 0.72f,
+                    cornerRadius = CornerRadius(2f, 2f)
+                )
+            )
+        }
+        drawPath(chipRect, color, style = Stroke(width = 1.4f))
+
+        // Central core dot
+        drawCircle(
+            color = color,
+            radius = w * 0.08f,
+            center = Offset(w * 0.5f, h * 0.5f)
+        )
+
+        // Pins (top, bottom, left, right)
+        val stroke = 1.2f
+        // Top pins
+        drawLine(color, Offset(w * 0.40f, h * 0.12f), Offset(w * 0.40f, h * 0.28f), strokeWidth = stroke)
+        drawLine(color, Offset(w * 0.60f, h * 0.12f), Offset(w * 0.60f, h * 0.28f), strokeWidth = stroke)
+        // Bottom pins
+        drawLine(color, Offset(w * 0.40f, h * 0.72f), Offset(w * 0.40f, h * 0.88f), strokeWidth = stroke)
+        drawLine(color, Offset(w * 0.60f, h * 0.72f), Offset(w * 0.60f, h * 0.88f), strokeWidth = stroke)
+        // Left pins
+        drawLine(color, Offset(w * 0.12f, h * 0.40f), Offset(w * 0.28f, h * 0.40f), strokeWidth = stroke)
+        drawLine(color, Offset(w * 0.12f, h * 0.60f), Offset(w * 0.28f, h * 0.60f), strokeWidth = stroke)
+        // Right pins
+        drawLine(color, Offset(w * 0.72f, h * 0.40f), Offset(w * 0.88f, h * 0.40f), strokeWidth = stroke)
+        drawLine(color, Offset(w * 0.72f, h * 0.60f), Offset(w * 0.88f, h * 0.60f), strokeWidth = stroke)
+    }
+}
+
+@Composable
+fun DevHudVectorIcon(
+    isActive: Boolean,
+    color: Color = Color.White,
+    size: Dp = 14.dp,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+
+        // Outer frame
+        val frame = Path().apply {
+            addRoundRect(
+                androidx.compose.ui.geometry.RoundRect(
+                    left = w * 0.15f,
+                    top = h * 0.20f,
+                    right = w * 0.85f,
+                    bottom = h * 0.80f,
+                    cornerRadius = CornerRadius(2f, 2f)
+                )
+            )
+        }
+        drawPath(frame, color, style = Stroke(width = 1.3f))
+
+        // Pulse / waveform lines inside
+        val wave = Path().apply {
+            moveTo(w * 0.22f, h * 0.52f)
+            lineTo(w * 0.38f, h * 0.52f)
+            lineTo(w * 0.48f, h * 0.32f)
+            lineTo(w * 0.56f, h * 0.68f)
+            lineTo(w * 0.66f, h * 0.52f)
+            lineTo(w * 0.78f, h * 0.52f)
+        }
+        drawPath(wave, color, style = Stroke(width = 1.4f, cap = StrokeCap.Round))
+    }
+}
+
