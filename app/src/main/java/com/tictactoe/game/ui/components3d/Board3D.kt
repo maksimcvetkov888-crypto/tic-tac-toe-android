@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -79,7 +80,7 @@ fun Interactive3DBoard(
         ),
         label = "idlePhase"
     )
-    val idleSway = sin(idlePhase) * 1.8f
+    val idleSway: Float = sin(idlePhase) * 1.8f
 
     // Animated scale and elevation for each cell
     val cellScales = remember { Array(9) { Animatable(0f) } }
@@ -148,8 +149,8 @@ fun Interactive3DBoard(
             val w = size.width
             val h = size.height
 
-            val rxRad = (smoothRotX + idleSway) * PI.toFloat() / 180f
-            val ryRad = smoothRotY * PI.toFloat() / 180f
+            val rxRad: Float = (smoothRotX + idleSway) * (PI.toFloat() / 180f)
+            val ryRad: Float = smoothRotY * (PI.toFloat() / 180f)
 
             // 1. Draw 3D Base Monolith Slab
             draw3DBaseSlab(rxRad, ryRad, w, h)
