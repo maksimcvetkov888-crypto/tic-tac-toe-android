@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -38,7 +39,6 @@ import com.tictactoe.game.model.GameStatus
 import com.tictactoe.game.model.GameUiState
 import com.tictactoe.game.model.Player
 import com.tictactoe.game.ui.theme.AccentVictory
-import com.tictactoe.game.ui.theme.BorderFocus
 import com.tictactoe.game.ui.theme.BorderSubtle
 import com.tictactoe.game.ui.theme.CellBackground
 import com.tictactoe.game.ui.theme.PlayerOFire
@@ -47,6 +47,9 @@ import com.tictactoe.game.ui.theme.SurfaceCard
 import com.tictactoe.game.ui.theme.SurfaceCardElevated
 import kotlin.math.PI
 import kotlin.math.sin
+import kotlin.random.Random
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 @Composable
 fun Interactive3DBoard(
@@ -82,18 +85,37 @@ fun Interactive3DBoard(
     )
     val idleSway: Float = sin(idlePhase) * 1.8f
 
-    // Animated scale and elevation for each cell
+    // Kinetic drop elevation and scale animations per cell
     val cellScales = remember { Array(9) { Animatable(0f) } }
+    val cellDropZ = remember { Array(9) { Animatable(0f) } }
+    val cameraImpactShake = remember { Animatable(0f) }
 
     state.board.forEachIndexed { index, player ->
         LaunchedEffect(player) {
             if (player != null) {
-                cellScales[index].snapTo(0f)
-                cellScales[index].animateTo(
-                    targetValue = 1f,
-                    animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioMediumBouncy)
+                cellDropZ[index].snapTo(95f)
+                cellScales[index].snapTo(0.35f)
+
+                launch {
+                    cellScales[index].animateTo(
+                        targetValue = 1f,
+                        animationSpec = spring(stiffness = 420f, dampingRatio = Spring.DampingRatioMediumBouncy)
+                    )
+                }
+
+                cellDropZ[index].animateTo(
+                    targetValue = 0f,
+                    animationSpec = spring(stiffness = 320f, dampingRatio = Spring.DampingRatioMediumBouncy)
+                )
+
+                // Trigger micro impact shake on landing
+                cameraImpactShake.snapTo(2.2f)
+                cameraImpactShake.animateTo(
+                    targetValue = 0f,
+                    animationSpec = spring(stiffness = 500f, dampingRatio = Spring.DampingRatioNoBouncy)
                 )
             } else {
+                cellDropZ[index].snapTo(0f)
                 cellScales[index].snapTo(0f)
             }
         }
@@ -115,6 +137,49 @@ fun Interactive3DBoard(
         }
     }
 
+    // 3D Victory Particle Pool
+    var particles by remember { mutableStateOf<List<Particle3D>>(emptyList()) }
+
+    LaunchedEffect(winningLine) {
+        if (winningLine != null && winningLine.size == 3) {
+            val random = Random(1337)
+            val burstList = mutableListOf<Particle3D>()
+            winningLine.forEach { cellIdx ->
+                val center = cellPositions[cellIdx]
+                repeat(15) {
+                    val vx = (random.nextFloat() - 0.5f) * 190f
+                    val vy = -(random.nextFloat() * 180f + 70f) // Burst upward
+                    val vz = (random.nextFloat() - 0.5f) * 140f
+                    val color = if (random.nextBoolean()) AccentVictory else Color.White
+                    burstList.add(
+                        Particle3D(
+                            pos = center.copy(z = 32f),
+                            velocity = Vec3(vx, vy, vz),
+                            rotation = Vec3(random.nextFloat() * 6f, random.nextFloat() * 6f, random.nextFloat() * 6f),
+                            rotVelocity = Vec3(random.nextFloat() * 8f, random.nextFloat() * 8f, random.nextFloat() * 8f),
+                            size = random.nextFloat() * 3.5f + 2.5f,
+                            color = color,
+                            life = 1f,
+                            maxLife = random.nextFloat() * 1.2f + 1.2f
+                        )
+                    )
+                }
+            }
+            particles = burstList
+
+            var lastTime = System.nanoTime()
+            while (isActive && particles.any { it.life > 0.01f }) {
+                withFrameNanos { now ->
+                    val dt = ((now - lastTime) / 1_000_000_000f).coerceIn(0.001f, 0.04f)
+                    lastTime = now
+                    particles.forEach { it.update(dt) }
+                }
+            }
+        } else {
+            particles = emptyList()
+        }
+    }
+
     var projectedCellPolygons by remember { mutableStateOf<List<List<Offset>>>(emptyList()) }
 
     Box(
@@ -131,26 +196,34 @@ fun Interactive3DBoard(
                 }
             }
             .pointerInput(state.board, state.status, projectedCellPolygons) {
-                detectTapGestures { tapOffset ->
-                    if (state.isFinished) return@detectTapGestures
+                detectTapGestures(
+                    onDoubleTap = {
+                        // Double tap to reset camera to standard 3D perspective
+                        dragRotX = 24f
+                        dragRotY = -16f
+                    },
+                    onTap = { tapOffset ->
+                        if (state.isFinished) return@detectTapGestures
 
-                    // 3D Hit testing: test tap point inside projected cell polygons
-                    for (index in projectedCellPolygons.indices) {
-                        val poly = projectedCellPolygons[index]
-                        if (isPointInsidePolygon(tapOffset, poly)) {
-                            onCellClick(index)
-                            break
+                        // 3D Hit testing: test tap point inside projected cell polygons
+                        for (index in projectedCellPolygons.indices) {
+                            val poly = projectedCellPolygons[index]
+                            if (isPointInsidePolygon(tapOffset, poly)) {
+                                onCellClick(index)
+                                break
+                            }
                         }
                     }
-                }
+                )
             }
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
 
-            val rxRad: Float = (smoothRotX + idleSway) * (PI.toFloat() / 180f)
-            val ryRad: Float = smoothRotY * (PI.toFloat() / 180f)
+            val shake = cameraImpactShake.value
+            val rxRad: Float = (smoothRotX + idleSway + shake) * (PI.toFloat() / 180f)
+            val ryRad: Float = (smoothRotY + shake * 0.5f) * (PI.toFloat() / 180f)
 
             // 1. Draw 3D Base Monolith Slab
             draw3DBaseSlab(rxRad, ryRad, w, h)
@@ -174,16 +247,32 @@ fun Interactive3DBoard(
                     screenHeight = h
                 )
                 currentPolys.add(poly)
+
+                // 2.1 Contact Shadow for active tokens
+                val player = state.board[i]
+                if (player != null && cellScales[i].value > 0.05f) {
+                    val dropRatio = (1f - (cellDropZ[i].value / 95f)).coerceIn(0f, 1f)
+                    renderContactShadow(
+                        center = cellPos.copy(z = zElevation + 0.5f),
+                        radius = 21f * cellScales[i].value,
+                        rxRad = rxRad,
+                        ryRad = ryRad,
+                        screenWidth = w,
+                        screenHeight = h,
+                        alpha = 0.45f * dropRatio
+                    )
+                }
             }
             projectedCellPolygons = currentPolys
 
-            // 3. Render 3D Tokens (X and O)
+            // 3. Render 3D Tokens (X and O) with kinetic drop & bounce
             for (i in 0 until 9) {
                 val player = state.board[i]
                 if (player != null) {
                     val pos = cellPositions[i]
                     val isWinning = winningLine?.contains(i) == true
-                    val tokenZ = (if (isWinning) 26f else 16f)
+                    val baseZ = if (isWinning) 26f else 16f
+                    val tokenZ = baseZ + cellDropZ[i].value
                     val tokenCenter = pos.copy(z = tokenZ).rotate(rxRad, ryRad)
 
                     val color = when {
@@ -217,12 +306,23 @@ fun Interactive3DBoard(
                     screenHeight = h
                 )
             }
+
+            // 5. Render 3D Victory Particles Cloud
+            if (particles.isNotEmpty()) {
+                render3DParticles(
+                    particles = particles,
+                    rxRad = rxRad,
+                    ryRad = ryRad,
+                    screenWidth = w,
+                    screenHeight = h
+                )
+            }
         }
     }
 }
 
 /**
- * Draws the 3D obsidian base monolith with beveled faces.
+ * Draws the 3D obsidian base monolith with beveled faces and PBR studio lighting.
  */
 private fun DrawScope.draw3DBaseSlab(rx: Float, ry: Float, w: Float, h: Float) {
     val halfW = 126f
@@ -252,11 +352,11 @@ private fun DrawScope.draw3DBaseSlab(rx: Float, ry: Float, w: Float, h: Float) {
     )
 
     val faces = listOf(
-        PolygonFace(listOf(v[0], v[1], v[2], v[3]), Vec3(0f, 0f, 1f), SurfaceCard),
-        PolygonFace(listOf(v[3], v[2], v[6], v[7]), Vec3(0f, 1f, 0f), SurfaceCardElevated),
-        PolygonFace(listOf(v[1], v[5], v[6], v[2]), Vec3(1f, 0f, 0f), SurfaceCardElevated),
-        PolygonFace(listOf(v[4], v[0], v[3], v[7]), Vec3(-1f, 0f, 0f), SurfaceCardElevated),
-        PolygonFace(listOf(v[4], v[5], v[1], v[0]), Vec3(0f, -1f, 0f), SurfaceCardElevated)
+        PolygonFace(listOf(v[0], v[1], v[2], v[3]), Vec3(0f, 0f, 1f), SurfaceCard, metallic = 0.35f, shininess = 28f),
+        PolygonFace(listOf(v[3], v[2], v[6], v[7]), Vec3(0f, 1f, 0f), SurfaceCardElevated, metallic = 0.35f, shininess = 28f),
+        PolygonFace(listOf(v[1], v[5], v[6], v[2]), Vec3(1f, 0f, 0f), SurfaceCardElevated, metallic = 0.35f, shininess = 28f),
+        PolygonFace(listOf(v[4], v[0], v[3], v[7]), Vec3(-1f, 0f, 0f), SurfaceCardElevated, metallic = 0.35f, shininess = 28f),
+        PolygonFace(listOf(v[4], v[5], v[1], v[0]), Vec3(0f, -1f, 0f), SurfaceCardElevated, metallic = 0.35f, shininess = 28f)
     )
 
     renderFaces(faces, rx, ry, w, h)
@@ -294,11 +394,11 @@ private fun DrawScope.draw3DCellPedestal(
     val sideColor = if (isWinning) AccentVictory.copy(alpha = 0.45f) else SurfaceCardElevated
 
     val faces = listOf(
-        PolygonFace(listOf(localV[0], localV[1], localV[2], localV[3]), Vec3(0f, 0f, 1f), topColor),
-        PolygonFace(listOf(localV[3], localV[2], localV[6], localV[7]), Vec3(0f, 1f, 0f), sideColor),
-        PolygonFace(listOf(localV[1], localV[5], localV[6], localV[2]), Vec3(1f, 0f, 0f), sideColor),
-        PolygonFace(listOf(localV[4], localV[0], localV[3], localV[7]), Vec3(-1f, 0f, 0f), sideColor),
-        PolygonFace(listOf(localV[4], localV[5], localV[1], localV[0]), Vec3(0f, -1f, 0f), sideColor)
+        PolygonFace(listOf(localV[0], localV[1], localV[2], localV[3]), Vec3(0f, 0f, 1f), topColor, metallic = 0.4f, shininess = 32f),
+        PolygonFace(listOf(localV[3], localV[2], localV[6], localV[7]), Vec3(0f, 1f, 0f), sideColor, metallic = 0.4f, shininess = 32f),
+        PolygonFace(listOf(localV[1], localV[5], localV[6], localV[2]), Vec3(1f, 0f, 0f), sideColor, metallic = 0.4f, shininess = 32f),
+        PolygonFace(listOf(localV[4], localV[0], localV[3], localV[7]), Vec3(-1f, 0f, 0f), sideColor, metallic = 0.4f, shininess = 32f),
+        PolygonFace(listOf(localV[4], localV[5], localV[1], localV[0]), Vec3(0f, -1f, 0f), sideColor, metallic = 0.4f, shininess = 32f)
     )
 
     renderFaces(faces, rxRad, ryRad, screenWidth, screenHeight)
@@ -371,7 +471,12 @@ private fun DrawScope.renderFaces(
         if (transformedNormal.z > -0.2f) {
             val projectedPoints = face.vertices.map { it.rotate(rx, ry).project(w, h) }
             val avgDepth = projectedPoints.map { it.depth }.average().toFloat()
-            val shadedColor = Lighting3D.computeShading(transformedNormal, face.baseColor)
+            val shadedColor = Lighting3D.computeShading(
+                normal = transformedNormal,
+                baseColor = face.baseColor,
+                metallic = face.metallic,
+                shininess = face.shininess
+            )
             projectedList.add(ProjectedFace(projectedPoints.map { it.screenPos }, avgDepth, shadedColor))
         }
     }

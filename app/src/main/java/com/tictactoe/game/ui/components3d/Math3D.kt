@@ -1,8 +1,10 @@
 package com.tictactoe.game.ui.components3d
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import kotlin.math.cos
 import kotlin.math.max
+import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -92,23 +94,82 @@ data class ProjectedPoint(
 data class PolygonFace(
     val vertices: List<Vec3>,
     val normal: Vec3,
-    val baseColor: androidx.compose.ui.graphics.Color
+    val baseColor: Color,
+    val metallic: Float = 0.4f,
+    val shininess: Float = 32f
 )
 
+/**
+ * Three.js & Blender style 3-Point Studio Lighting with Blinn-Phong Specular & Fresnel Rim.
+ */
 object Lighting3D {
-    val lightDir: Vec3 = Vec3(0.45f, -0.75f, 0.9f).normalize()
-    const val ambientLight: Float = 0.38f
-    const val diffuseStrength: Float = 0.62f
+    // 1. Key Light: warm main directional light
+    val keyLightDir: Vec3 = Vec3(0.52f, -0.78f, 0.85f).normalize()
+    const val keyIntensity: Float = 0.62f
 
-    fun computeShading(normal: Vec3, baseColor: androidx.compose.ui.graphics.Color): androidx.compose.ui.graphics.Color {
-        val diffuse = max(0f, normal.dot(lightDir)) * diffuseStrength
-        val brightness = (ambientLight + diffuse).coerceIn(0.2f, 1.2f)
+    // 2. Fill Light: cool subtle ambient filler from opposite side
+    val fillLightDir: Vec3 = Vec3(-0.65f, 0.45f, 0.4f).normalize()
+    const val fillIntensity: Float = 0.22f
 
-        return androidx.compose.ui.graphics.Color(
-            red = (baseColor.red * brightness).coerceIn(0f, 1f),
-            green = (baseColor.green * brightness).coerceIn(0f, 1f),
-            blue = (baseColor.blue * brightness).coerceIn(0f, 1f),
-            alpha = baseColor.alpha
-        )
+    // 3. Camera view direction in camera space
+    val viewDir: Vec3 = Vec3(0f, 0f, 1f)
+
+    const val ambientLight: Float = 0.28f
+    const val rimIntensity: Float = 0.35f
+    const val specularIntensity: Float = 0.55f
+
+    /**
+     * Computes final PBR shaded color for a polygon face.
+     */
+    fun computeShading(
+        normal: Vec3,
+        baseColor: Color,
+        metallic: Float = 0.4f,
+        shininess: Float = 32f
+    ): Color {
+        val n = normal.normalize()
+
+        // Diffuse: Key + Fill
+        val diffKey = max(0f, n.dot(keyLightDir)) * keyIntensity
+        val diffFill = max(0f, n.dot(fillLightDir)) * fillIntensity
+        val totalDiffuse = ambientLight + diffKey + diffFill
+
+        // Blinn-Phong Specular highlight
+        val halfVec = (keyLightDir + viewDir).normalize()
+        val nDotH = max(0f, n.dot(halfVec))
+        val specFactor = nDotH.pow(shininess) * specularIntensity
+
+        // Fresnel Rim Glow: accentuates 3D contours
+        val nDotV = max(0f, n.dot(viewDir))
+        val fresnel = (1f - nDotV).pow(2.8f) * rimIntensity
+
+        // Composite components
+        val r = (baseColor.red * totalDiffuse + specFactor * (1f - metallic * 0.5f) + fresnel * 0.85f).coerceIn(0f, 1f)
+        val g = (baseColor.green * totalDiffuse + specFactor * (1f - metallic * 0.5f) + fresnel * 0.85f).coerceIn(0f, 1f)
+        val b = (baseColor.blue * totalDiffuse + specFactor * (1f - metallic * 0.5f) + fresnel * 0.85f).coerceIn(0f, 1f)
+
+        return Color(red = r, green = g, blue = b, alpha = baseColor.alpha)
+    }
+}
+
+/**
+ * 3D Particle for victory fireworks and kinetic impact bursts.
+ */
+data class Particle3D(
+    var pos: Vec3,
+    var velocity: Vec3,
+    var rotation: Vec3,
+    var rotVelocity: Vec3,
+    val size: Float,
+    val color: Color,
+    var life: Float = 1f, // 1.0 -> 0.0
+    val maxLife: Float = 1f
+) {
+    fun update(dt: Float) {
+        pos += velocity * dt
+        // Gravity acceleration downwards
+        velocity = velocity.copy(y = velocity.y + 380f * dt)
+        rotation += rotVelocity * dt
+        life = (life - dt / maxLife).coerceAtLeast(0f)
     }
 }

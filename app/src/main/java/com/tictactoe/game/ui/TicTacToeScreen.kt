@@ -123,8 +123,8 @@ fun TicTacToeScreen(
             )
 
             Text(
-                text = "👆 Проведите пальцем, чтобы вращать 3D поле",
-                fontSize = 12.sp,
+                text = "?? ???????? 3D ???? . ??????? ???: ????? ??????",
+                fontSize = 11.sp,
                 color = TextMuted,
                 letterSpacing = 0.5.sp
             )
@@ -174,7 +174,7 @@ private fun EditorialHeader(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Крестики-Нолики 3D",
+                text = "????????-?????? 3D",
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary
@@ -187,11 +187,11 @@ private fun EditorialHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             ControlPill(
-                icon = if (isSoundEnabled) "🔊" else "🔇",
+                icon = if (isSoundEnabled) "??" else "??",
                 onClick = onToggleSound
             )
             ControlPill(
-                icon = if (isHapticsEnabled) "📳" else "📴",
+                icon = if (isHapticsEnabled) "??" else "??",
                 onClick = onToggleHaptics
             )
         }
@@ -232,7 +232,7 @@ private fun BentoScoreboard(state: GameUiState) {
 
         BentoStatCard(
             modifier = Modifier.weight(0.85f),
-            label = "НИЧЬИ",
+            label = "?????",
             score = state.scores.draws,
             accentColor = TextMuted,
             isActive = false
@@ -292,16 +292,16 @@ private fun ActiveTurnCard(state: GameUiState) {
     val (statusText, statusColor, beamColor) = when (val s = state.status) {
         is GameStatus.InProgress -> {
             if (state.currentPlayer == Player.X) {
-                Triple("Ход: Игрок 1 (X)", PlayerXAzure, PlayerXGlow)
+                Triple("???: ????? 1 (X)", PlayerXAzure, PlayerXGlow)
             } else {
-                Triple("Ход: Игрок 2 (O)", PlayerOFire, PlayerOGlow)
+                Triple("???: ????? 2 (O)", PlayerOFire, PlayerOGlow)
             }
         }
         is GameStatus.Won -> {
-            val winnerName = if (s.winner == Player.X) "Игрок 1 (X)" else "Игрок 2 (O)"
-            Triple("Победа: $winnerName 🎉", AccentVictory, AccentVictoryGlow)
+            val winnerName = if (s.winner == Player.X) "????? 1 (X)" else "????? 2 (O)"
+            Triple("??????: $winnerName ??", AccentVictory, AccentVictoryGlow)
         }
-        GameStatus.Draw -> Triple("Боевая ничья! 🤝", TextSecondary, TextMuted)
+        GameStatus.Draw -> Triple("?????? ?????! ??", TextSecondary, TextMuted)
     }
 
     BorderBeamContainer(
@@ -358,7 +358,7 @@ private fun BottomActionBar(
             height = 52.dp
         ) {
             Text(
-                text = "НОВАЯ ИГРА",
+                text = "????? ????",
                 letterSpacing = 1.5.sp,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Black,
@@ -370,7 +370,7 @@ private fun BottomActionBar(
 
         TextButton(onClick = onResetScore) {
             Text(
-                text = "Сбросить счёт",
+                text = "???????? ????",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = TextMuted

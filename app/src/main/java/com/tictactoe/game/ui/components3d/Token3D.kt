@@ -1,5 +1,6 @@
 package com.tictactoe.game.ui.components3d
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -32,11 +33,11 @@ object Token3DGeometry {
 
     /**
      * Generates a 3D mesh for the 'O' token.
-     * Consists of an extruded 16-segment beveled cylindrical ring.
+     * Consists of an extruded 24-segment beveled cylindrical ring for ultra-smooth curves.
      */
-    fun createOMesh(outerRadius: Float = 32f, innerRadius: Float = 18f, depth: Float = 8f, color: Color): List<PolygonFace> {
+    fun createOMesh(outerRadius: Float = 30f, innerRadius: Float = 17f, depth: Float = 8f, color: Color): List<PolygonFace> {
         val faces = mutableListOf<PolygonFace>()
-        val segments = 16
+        val segments = 24
         val halfD = depth
 
         val outerPoints = (0 until segments).map { i ->
@@ -61,7 +62,9 @@ object Token3DGeometry {
                         innerPoints[i].copy(z = halfD)
                     ),
                     normal = Vec3(0f, 0f, 1f),
-                    baseColor = color
+                    baseColor = color,
+                    metallic = 0.55f,
+                    shininess = 40f
                 )
             )
 
@@ -77,7 +80,9 @@ object Token3DGeometry {
                         outerPoints[i].copy(z = halfD)
                     ),
                     normal = outerNormal,
-                    baseColor = color
+                    baseColor = color,
+                    metallic = 0.55f,
+                    shininess = 40f
                 )
             )
 
@@ -92,7 +97,9 @@ object Token3DGeometry {
                         innerPoints[i].copy(z = -halfD)
                     ),
                     normal = innerNormal,
-                    baseColor = color
+                    baseColor = color,
+                    metallic = 0.55f,
+                    shininess = 40f
                 )
             )
         }
@@ -114,23 +121,23 @@ object Token3DGeometry {
 
         return listOf(
             // Top (+Z)
-            PolygonFace(listOf(baseVertices[0], baseVertices[1], baseVertices[2], baseVertices[3]), Vec3(0f, 0f, 1f).rotateZ(angleZ), color),
+            PolygonFace(listOf(baseVertices[0], baseVertices[1], baseVertices[2], baseVertices[3]), Vec3(0f, 0f, 1f).rotateZ(angleZ), color, metallic = 0.6f, shininess = 48f),
             // Bottom (-Z)
-            PolygonFace(listOf(baseVertices[5], baseVertices[4], baseVertices[7], baseVertices[6]), Vec3(0f, 0f, -1f).rotateZ(angleZ), color),
+            PolygonFace(listOf(baseVertices[5], baseVertices[4], baseVertices[7], baseVertices[6]), Vec3(0f, 0f, -1f).rotateZ(angleZ), color, metallic = 0.6f, shininess = 48f),
             // Front (+Y)
-            PolygonFace(listOf(baseVertices[3], baseVertices[2], baseVertices[6], baseVertices[7]), Vec3(0f, 1f, 0f).rotateZ(angleZ), color),
+            PolygonFace(listOf(baseVertices[3], baseVertices[2], baseVertices[6], baseVertices[7]), Vec3(0f, 1f, 0f).rotateZ(angleZ), color, metallic = 0.6f, shininess = 48f),
             // Back (-Y)
-            PolygonFace(listOf(baseVertices[4], baseVertices[5], baseVertices[1], baseVertices[0]), Vec3(0f, -1f, 0f).rotateZ(angleZ), color),
+            PolygonFace(listOf(baseVertices[4], baseVertices[5], baseVertices[1], baseVertices[0]), Vec3(0f, -1f, 0f).rotateZ(angleZ), color, metallic = 0.6f, shininess = 48f),
             // Right (+X)
-            PolygonFace(listOf(baseVertices[1], baseVertices[5], baseVertices[6], baseVertices[2]), Vec3(1f, 0f, 0f).rotateZ(angleZ), color),
+            PolygonFace(listOf(baseVertices[1], baseVertices[5], baseVertices[6], baseVertices[2]), Vec3(1f, 0f, 0f).rotateZ(angleZ), color, metallic = 0.6f, shininess = 48f),
             // Left (-X)
-            PolygonFace(listOf(baseVertices[4], baseVertices[0], baseVertices[3], baseVertices[7]), Vec3(-1f, 0f, 0f).rotateZ(angleZ), color)
+            PolygonFace(listOf(baseVertices[4], baseVertices[0], baseVertices[3], baseVertices[7]), Vec3(-1f, 0f, 0f).rotateZ(angleZ), color, metallic = 0.6f, shininess = 48f)
         )
     }
 }
 
 /**
- * 3D Renderer for tokens with Painter's depth sorting and dynamic Lambertian shading.
+ * 3D Renderer for tokens with Painter's depth sorting and dynamic Studio 3-Point PBR shading.
  */
 fun DrawScope.render3DToken(
     player: Player,
@@ -171,8 +178,13 @@ fun DrawScope.render3DToken(
             }
 
             val avgDepth = transformedVertices.map { it.depth }.average().toFloat()
-            val shadedColor = Lighting3D.computeShading(transformedNormal, face.baseColor)
-            val edgeColor = shadedColor.copy(alpha = 0.55f)
+            val shadedColor = Lighting3D.computeShading(
+                normal = transformedNormal,
+                baseColor = face.baseColor,
+                metallic = face.metallic,
+                shininess = face.shininess
+            )
+            val edgeColor = shadedColor.copy(alpha = 0.65f)
 
             transformedFaces.add(TransformedFace(transformedVertices, avgDepth, shadedColor, edgeColor))
         }
@@ -197,4 +209,76 @@ fun DrawScope.render3DToken(
         drawPath(path = path, color = face.shadedColor, style = Fill)
         drawPath(path = path, color = face.edgeColor, style = Stroke(width = 1f))
     }
+}
+
+/**
+ * Renders contact ambient occlusion shadow on the pedestal surface beneath the token.
+ */
+fun DrawScope.renderContactShadow(
+    center: Vec3,
+    radius: Float,
+    rxRad: Float,
+    ryRad: Float,
+    screenWidth: Float,
+    screenHeight: Float,
+    alpha: Float = 0.45f
+) {
+    if (alpha <= 0.01f) return
+    val segments = 10
+    val points = (0 until segments).map { i ->
+        val ang = 2f * PI.toFloat() * i / segments
+        val p = Vec3(center.x + cos(ang) * radius, center.y + sin(ang) * radius, center.z)
+        p.rotate(rxRad, ryRad).project(screenWidth, screenHeight).screenPos
+    }
+
+    val path = Path().apply {
+        if (points.isNotEmpty()) {
+            moveTo(points[0].x, points[0].y)
+            for (i in 1 until points.size) {
+                lineTo(points[i].x, points[i].y)
+            }
+            close()
+        }
+    }
+    drawPath(path, Color.Black.copy(alpha = alpha), style = Fill)
+}
+
+/**
+ * Renders a cloud of 3D polygonal particles for victory fireworks.
+ */
+fun DrawScope.render3DParticles(
+    particles: List<Particle3D>,
+    rxRad: Float,
+    ryRad: Float,
+    screenWidth: Float,
+    screenHeight: Float
+) {
+    particles.forEach { p ->
+        if (p.life <= 0.01f) return@forEach
+        val center = p.pos.rotate(rxRad, ryRad).project(screenWidth, screenHeight)
+
+        val s = p.size * (fovScale(center.depth))
+        val alpha = (p.life / p.maxLife).coerceIn(0f, 1f)
+
+        // Draw rotated 3D diamond flake
+        val ang = p.rotation.z
+        val c = cos(ang) * s
+        val sn = sin(ang) * s
+        val ox = center.screenPos.x
+        val oy = center.screenPos.y
+
+        val path = Path().apply {
+            moveTo(ox - sn, oy - c)
+            lineTo(ox + c, oy - sn)
+            lineTo(ox + sn, oy + c)
+            lineTo(ox - c, oy + sn)
+            close()
+        }
+
+        drawPath(path, p.color.copy(alpha = alpha), style = Fill)
+    }
+}
+
+private fun fovScale(depth: Float): Float {
+    return (500f / depth.coerceAtLeast(50f)).coerceIn(0.4f, 2.5f)
 }
