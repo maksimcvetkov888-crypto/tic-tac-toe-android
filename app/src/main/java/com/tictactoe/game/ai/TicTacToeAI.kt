@@ -78,15 +78,24 @@ object TicTacToeAI {
         aiPlayer: Player,
         availableMoves: List<Int>
     ): Int {
-        // Fast opening path: if center empty, claim center
-        if (board[4] == null) return 4
+        // Fast opening path: if entire board is empty, claiming center is optimal
+        if (availableMoves.size == 9) return 4
 
         var bestScore = Int.MIN_VALUE
         var bestMove = availableMoves.first()
 
         val mutableBoard = board.toMutableList()
 
-        for (move in availableMoves) {
+        // Move ordering: evaluate center, then corners, then edges for optimal alpha-beta cutoffs
+        val prioritizedMoves = availableMoves.sortedByDescending { move ->
+            when (move) {
+                4 -> 3 // Center
+                0, 2, 6, 8 -> 2 // Corners
+                else -> 1 // Edges
+            }
+        }
+
+        for (move in prioritizedMoves) {
             mutableBoard[move] = aiPlayer
             val score = minimax(
                 board = mutableBoard,
@@ -102,6 +111,8 @@ object TicTacToeAI {
             if (score > bestScore) {
                 bestScore = score
                 bestMove = move
+                // Maximum possible score is 10 (immediate win)
+                if (bestScore == 10) break
             }
         }
 
