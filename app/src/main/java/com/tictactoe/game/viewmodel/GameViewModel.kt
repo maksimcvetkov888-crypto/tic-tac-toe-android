@@ -1,10 +1,13 @@
 package com.tictactoe.game.viewmodel
 
 import androidx.lifecycle.ViewModel
+import com.tictactoe.game.model.CameraPreset
 import com.tictactoe.game.model.GameIntent
 import com.tictactoe.game.model.GameStatus
 import com.tictactoe.game.model.GameUiState
+import com.tictactoe.game.model.MoveRecord
 import com.tictactoe.game.model.Player
+import com.tictactoe.game.model.Scores
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +36,9 @@ class GameViewModel : ViewModel() {
             is GameIntent.ResetScores -> handleResetScores()
             is GameIntent.ToggleSound -> _uiState.update { it.copy(isSoundEnabled = !it.isSoundEnabled) }
             is GameIntent.ToggleHaptics -> _uiState.update { it.copy(isHapticsEnabled = !it.isHapticsEnabled) }
+            is GameIntent.UndoMove -> handleUndoMove()
+            is GameIntent.SetTheme -> _uiState.update { it.copy(theme = intent.theme) }
+            is GameIntent.SetCameraPreset -> _uiState.update { it.copy(cameraPreset = intent.preset) }
         }
     }
 
@@ -43,19 +49,35 @@ class GameViewModel : ViewModel() {
         }
 
         val updatedBoard = current.board.toMutableList().also { it[index] = current.currentPlayer }
+        val updatedHistory = current.moveHistory + MoveRecord(index, current.currentPlayer)
         val winCombo = checkWin(updatedBoard, current.currentPlayer)
 
         if (winCombo != null) {
-            val updatedScores = if (current.currentPlayer == Player.X) {
+            val isX = current.currentPlayer == Player.X
+            val updatedScores = if (isX) {
                 current.scores.copy(xWins = current.scores.xWins + 1)
             } else {
                 current.scores.copy(oWins = current.scores.oWins + 1)
             }
+            val newStreakX = if (isX) current.winStreakX + 1 else 0
+            val newStreakO = if (!isX) current.winStreakO + 1 else 0
+            val streak = if (isX) newStreakX else newStreakO
+
+            val commentary = if (streak > 1) {
+                "?? ?????? ?????? ${current.currentPlayer.symbol}! ????? ????? ??????: $streak ??"
+            } else {
+                "? ????????? ?????? ?????? ${current.currentPlayer.symbol} ? ?????????? ?????!"
+            }
+
             _uiState.update {
                 it.copy(
                     board = updatedBoard,
                     status = GameStatus.Won(current.currentPlayer, winCombo),
-                    scores = updatedScores
+                    scores = updatedScores,
+                    moveHistory = updatedHistory,
+                    winStreakX = newStreakX,
+                    winStreakO = newStreakO,
+                    commentaryText = commentary
                 )
             }
         } else if (updatedBoard.all { it != null }) {
@@ -63,16 +85,56 @@ class GameViewModel : ViewModel() {
                 it.copy(
                     board = updatedBoard,
                     status = GameStatus.Draw,
-                    scores = current.scores.copy(draws = current.scores.draws + 1)
+                    scores = current.scores.copy(draws = current.scores.draws + 1),
+                    moveHistory = updatedHistory,
+                    commentaryText = "?? ?????? ????? . ?????? ??????? ??????"
                 )
             }
         } else {
+            val commentary = generateMoveCommentary(index, current.currentPlayer, updatedBoard)
             _uiState.update {
                 it.copy(
                     board = updatedBoard,
-                    currentPlayer = current.currentPlayer.next()
+                    currentPlayer = current.currentPlayer.next(),
+                    moveHistory = updatedHistory,
+                    commentaryText = commentary
                 )
             }
+        }
+    }
+
+    private fun handleUndoMove() {
+        val current = _uiState.value
+        if (current.moveHistory.isEmpty() || current.isFinished) return
+
+        val lastMove = current.moveHistory.last()
+        val newHistory = current.moveHistory.dropLast(1)
+        val newBoard = current.board.toMutableList().also { it[lastMove.index] = null }
+
+        _uiState.update {
+            it.copy(
+                board = newBoard,
+                currentPlayer = lastMove.player,
+                moveHistory = newHistory,
+                commentaryText = "? ??? ??????? . ????? ????? ????? ${lastMove.player.symbol}"
+            )
+        }
+    }
+
+    private fun generateMoveCommentary(index: Int, player: Player, board: List<Player?>): String {
+        // Check if next player is threatened by a 2-in-a-row
+        for (combo in winningCombinations) {
+            val count = combo.count { board[it] == player }
+            val empty = combo.count { board[it] == null }
+            if (count == 2 && empty == 1) {
+                return "?? ??????? ?????! ????? ${player.symbol} ??????? ?????? ??????!"
+            }
+        }
+
+        return when (index) {
+            4 -> "? ????? ???????? ??????? ${player.symbol} . ?????????????? ????????"
+            0, 2, 6, 8 -> "?? ??????? ??????? . ????? ${player.symbol} ??????????? ?????"
+            else -> "?? ?????? ??? ?????? ${player.symbol} . ????????? ??? ${player.next().symbol}"
         }
     }
 
@@ -93,7 +155,9 @@ class GameViewModel : ViewModel() {
                 board = List(9) { null },
                 currentPlayer = nextStarter,
                 startingPlayer = nextStarter,
-                status = GameStatus.InProgress
+                status = GameStatus.InProgress,
+                moveHistory = emptyList(),
+                commentaryText = "????? ????? . ?????? ????? ????? ${nextStarter.symbol}"
             )
         }
     }
@@ -106,7 +170,11 @@ class GameViewModel : ViewModel() {
                 currentPlayer = nextStarter,
                 startingPlayer = nextStarter,
                 status = GameStatus.InProgress,
-                scores = com.tictactoe.game.model.Scores()
+                scores = Scores(),
+                moveHistory = emptyList(),
+                winStreakX = 0,
+                winStreakO = 0,
+                commentaryText = "?????? ??????????? . ???? 0 : 0"
             )
         }
     }

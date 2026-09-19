@@ -27,8 +27,8 @@ jobs:
         with:
           gradle-version: '8.6'
 
-      - name: Build Release APK
-        run: gradle assembleRelease --stacktrace
+      - name: Test and Build Release APK
+        run: gradle testReleaseUnitTest assembleRelease --stacktrace
 
       - name: Prepare APK Artifact
         run: |
@@ -46,8 +46,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
-          tag_name: v2.1.0
-          name: Release v2.1.0 - Advanced 3D Studio & Kinetic Pro
+          tag_name: v3.0.0
+          name: Release v3.0.0 - Grandmaster Craft Edition
           body: |
             ## ??? Release v2.0.0: Full 3D Kinetic Edition
 

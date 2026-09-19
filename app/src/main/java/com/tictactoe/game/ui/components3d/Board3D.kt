@@ -35,16 +35,12 @@ import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import com.tictactoe.game.model.BoardTheme
+import com.tictactoe.game.model.CameraPreset
 import com.tictactoe.game.model.GameStatus
 import com.tictactoe.game.model.GameUiState
 import com.tictactoe.game.model.Player
-import com.tictactoe.game.ui.theme.AccentVictory
 import com.tictactoe.game.ui.theme.BorderSubtle
-import com.tictactoe.game.ui.theme.CellBackground
-import com.tictactoe.game.ui.theme.PlayerOFire
-import com.tictactoe.game.ui.theme.PlayerXAzure
-import com.tictactoe.game.ui.theme.SurfaceCard
-import com.tictactoe.game.ui.theme.SurfaceCardElevated
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.random.Random
@@ -55,11 +51,18 @@ import kotlinx.coroutines.launch
 fun Interactive3DBoard(
     state: GameUiState,
     onCellClick: (Int) -> Unit,
+    onImpact: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // 3D Orbital Rotation Angles (degrees)
-    var dragRotX by remember { mutableFloatStateOf(24f) }
-    var dragRotY by remember { mutableFloatStateOf(-16f) }
+    var dragRotX by remember { mutableFloatStateOf(state.cameraPreset.rotX) }
+    var dragRotY by remember { mutableFloatStateOf(state.cameraPreset.rotY) }
+
+    // Respond to preset changes
+    LaunchedEffect(state.cameraPreset) {
+        dragRotX = state.cameraPreset.rotX
+        dragRotY = state.cameraPreset.rotY
+    }
 
     val smoothRotX by animateFloatAsState(
         targetValue = dragRotX,
@@ -83,7 +86,7 @@ fun Interactive3DBoard(
         ),
         label = "idlePhase"
     )
-    val idleSway: Float = sin(idlePhase) * 1.8f
+    val idleSway: Float = sin(idlePhase) * 1.6f
 
     // Kinetic drop elevation and scale animations per cell
     val cellScales = remember { Array(9) { Animatable(0f) } }
@@ -108,11 +111,12 @@ fun Interactive3DBoard(
                     animationSpec = spring(stiffness = 320f, dampingRatio = Spring.DampingRatioMediumBouncy)
                 )
 
-                // Trigger micro impact shake on landing
-                cameraImpactShake.snapTo(2.2f)
+                // Trigger physical impact thud and camera shake on landing
+                onImpact()
+                cameraImpactShake.snapTo(2.4f)
                 cameraImpactShake.animateTo(
                     targetValue = 0f,
-                    animationSpec = spring(stiffness = 500f, dampingRatio = Spring.DampingRatioNoBouncy)
+                    animationSpec = spring(stiffness = 480f, dampingRatio = Spring.DampingRatioNoBouncy)
                 )
             } else {
                 cellDropZ[index].snapTo(0f)
@@ -137,6 +141,23 @@ fun Interactive3DBoard(
         }
     }
 
+    // 36 Ambient Starfield Dust Motes
+    val ambientStars = remember {
+        val rnd = Random(777)
+        (0 until 36).map {
+            val x = (rnd.nextFloat() - 0.5f) * 440f
+            val y = (rnd.nextFloat() - 0.5f) * 440f
+            val z = (rnd.nextFloat() - 0.5f) * 260f - 40f
+            Star3D(
+                initialPos = Vec3(x, y, z),
+                size = rnd.nextFloat() * 2.8f + 1.2f,
+                baseAlpha = rnd.nextFloat() * 0.45f + 0.25f,
+                phaseOffset = rnd.nextFloat() * 6.28f,
+                color = Color(0xFFE2E8F0)
+            )
+        }
+    }
+
     // 3D Victory Particle Pool
     var particles by remember { mutableStateOf<List<Particle3D>>(emptyList()) }
 
@@ -146,18 +167,18 @@ fun Interactive3DBoard(
             val burstList = mutableListOf<Particle3D>()
             winningLine.forEach { cellIdx ->
                 val center = cellPositions[cellIdx]
-                repeat(15) {
-                    val vx = (random.nextFloat() - 0.5f) * 190f
-                    val vy = -(random.nextFloat() * 180f + 70f) // Burst upward
-                    val vz = (random.nextFloat() - 0.5f) * 140f
-                    val color = if (random.nextBoolean()) AccentVictory else Color.White
+                repeat(16) {
+                    val vx = (random.nextFloat() - 0.5f) * 200f
+                    val vy = -(random.nextFloat() * 190f + 80f) // Burst upward
+                    val vz = (random.nextFloat() - 0.5f) * 150f
+                    val color = if (random.nextBoolean()) state.theme.victoryColor else Color.White
                     burstList.add(
                         Particle3D(
                             pos = center.copy(z = 32f),
                             velocity = Vec3(vx, vy, vz),
                             rotation = Vec3(random.nextFloat() * 6f, random.nextFloat() * 6f, random.nextFloat() * 6f),
                             rotVelocity = Vec3(random.nextFloat() * 8f, random.nextFloat() * 8f, random.nextFloat() * 8f),
-                            size = random.nextFloat() * 3.5f + 2.5f,
+                            size = random.nextFloat() * 3.8f + 2.2f,
                             color = color,
                             life = 1f,
                             maxLife = random.nextFloat() * 1.2f + 1.2f
@@ -186,7 +207,7 @@ fun Interactive3DBoard(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .padding(8.dp)
+            .padding(6.dp)
             .pointerInput(Unit) {
                 detectDragGestures { change, dragAmount ->
                     change.consume()
@@ -225,10 +246,24 @@ fun Interactive3DBoard(
             val rxRad: Float = (smoothRotX + idleSway + shake) * (PI.toFloat() / 180f)
             val ryRad: Float = (smoothRotY + shake * 0.5f) * (PI.toFloat() / 180f)
 
-            // 1. Draw 3D Base Monolith Slab
-            draw3DBaseSlab(rxRad, ryRad, w, h)
+            // 0. Ambient 3D Starfield Motes
+            ambientStars.forEach { star ->
+                val p = star.currentPos(idlePhase).rotate(rxRad * 0.6f, ryRad * 0.6f).project(w, h)
+                val alpha = star.currentAlpha(idlePhase)
+                drawCircle(
+                    color = star.color.copy(alpha = alpha),
+                    radius = star.size,
+                    center = p.screenPos
+                )
+            }
 
-            // 2. Compute and draw 3D Cell Pedestals
+            // 1. Perspective 3D Grid Floor Horizon
+            draw3DGridFloor(rxRad, ryRad, w, h, state.theme.gridLineColor)
+
+            // 2. Draw 3D Base Monolith Slab with Theme Colors
+            draw3DBaseSlab(rxRad, ryRad, w, h, state.theme)
+
+            // 3. Compute and draw 3D Cell Pedestals
             val currentPolys = mutableListOf<List<Offset>>()
             for (i in 0 until 9) {
                 val pos = cellPositions[i]
@@ -243,12 +278,13 @@ fun Interactive3DBoard(
                     rxRad = rxRad,
                     ryRad = ryRad,
                     isWinning = isWinning,
+                    theme = state.theme,
                     screenWidth = w,
                     screenHeight = h
                 )
                 currentPolys.add(poly)
 
-                // 2.1 Contact Shadow for active tokens
+                // Contact Shadow for active tokens
                 val player = state.board[i]
                 if (player != null && cellScales[i].value > 0.05f) {
                     val dropRatio = (1f - (cellDropZ[i].value / 95f)).coerceIn(0f, 1f)
@@ -265,7 +301,7 @@ fun Interactive3DBoard(
             }
             projectedCellPolygons = currentPolys
 
-            // 3. Render 3D Tokens (X and O) with kinetic drop & bounce
+            // 4. Render 3D Tokens (X and O) with kinetic drop & bounce
             for (i in 0 until 9) {
                 val player = state.board[i]
                 if (player != null) {
@@ -276,9 +312,9 @@ fun Interactive3DBoard(
                     val tokenCenter = pos.copy(z = tokenZ).rotate(rxRad, ryRad)
 
                     val color = when {
-                        isWinning -> AccentVictory
-                        player == Player.X -> PlayerXAzure
-                        else -> PlayerOFire
+                        isWinning -> state.theme.victoryColor
+                        player == Player.X -> state.theme.xColor
+                        else -> state.theme.oColor
                     }
 
                     render3DToken(
@@ -295,19 +331,20 @@ fun Interactive3DBoard(
                 }
             }
 
-            // 4. Render 3D Volumetric Victory Laser Beam
+            // 5. Render 3D Volumetric Victory Laser Beam
             if (winningLine != null && winningLine.size == 3) {
                 draw3DLaserBeam(
                     startCell = cellPositions[winningLine.first()].copy(z = 28f),
                     endCell = cellPositions[winningLine.last()].copy(z = 28f),
                     rxRad = rxRad,
                     ryRad = ryRad,
+                    victoryColor = state.theme.victoryColor,
                     screenWidth = w,
                     screenHeight = h
                 )
             }
 
-            // 5. Render 3D Victory Particles Cloud
+            // 6. Render 3D Victory Particles Cloud
             if (particles.isNotEmpty()) {
                 render3DParticles(
                     particles = particles,
@@ -322,9 +359,34 @@ fun Interactive3DBoard(
 }
 
 /**
- * Draws the 3D obsidian base monolith with beveled faces and PBR studio lighting.
+ * Draws the perspective 3D coordinate grid floor below the board.
  */
-private fun DrawScope.draw3DBaseSlab(rx: Float, ry: Float, w: Float, h: Float) {
+private fun DrawScope.draw3DGridFloor(rx: Float, ry: Float, w: Float, h: Float, gridColor: Color) {
+    val floorZ = -45f
+    val range = 180f
+    val step = 45f
+
+    var x = -range
+    while (x <= range) {
+        val p1 = Vec3(x, -range, floorZ).rotate(rx, ry).project(w, h).screenPos
+        val p2 = Vec3(x, range, floorZ).rotate(rx, ry).project(w, h).screenPos
+        drawLine(gridColor, p1, p2, strokeWidth = 1f)
+        x += step
+    }
+
+    var y = -range
+    while (y <= range) {
+        val p1 = Vec3(-range, y, floorZ).rotate(rx, ry).project(w, h).screenPos
+        val p2 = Vec3(range, y, floorZ).rotate(rx, ry).project(w, h).screenPos
+        drawLine(gridColor, p1, p2, strokeWidth = 1f)
+        y += step
+    }
+}
+
+/**
+ * Draws the 3D monolith base slab with theme colors.
+ */
+private fun DrawScope.draw3DBaseSlab(rx: Float, ry: Float, w: Float, h: Float, theme: BoardTheme) {
     val halfW = 126f
     val halfH = 126f
     val depth = 16f
@@ -352,11 +414,11 @@ private fun DrawScope.draw3DBaseSlab(rx: Float, ry: Float, w: Float, h: Float) {
     )
 
     val faces = listOf(
-        PolygonFace(listOf(v[0], v[1], v[2], v[3]), Vec3(0f, 0f, 1f), SurfaceCard, metallic = 0.35f, shininess = 28f),
-        PolygonFace(listOf(v[3], v[2], v[6], v[7]), Vec3(0f, 1f, 0f), SurfaceCardElevated, metallic = 0.35f, shininess = 28f),
-        PolygonFace(listOf(v[1], v[5], v[6], v[2]), Vec3(1f, 0f, 0f), SurfaceCardElevated, metallic = 0.35f, shininess = 28f),
-        PolygonFace(listOf(v[4], v[0], v[3], v[7]), Vec3(-1f, 0f, 0f), SurfaceCardElevated, metallic = 0.35f, shininess = 28f),
-        PolygonFace(listOf(v[4], v[5], v[1], v[0]), Vec3(0f, -1f, 0f), SurfaceCardElevated, metallic = 0.35f, shininess = 28f)
+        PolygonFace(listOf(v[0], v[1], v[2], v[3]), Vec3(0f, 0f, 1f), theme.slabColor, metallic = 0.35f, shininess = 28f),
+        PolygonFace(listOf(v[3], v[2], v[6], v[7]), Vec3(0f, 1f, 0f), theme.slabSideColor, metallic = 0.35f, shininess = 28f),
+        PolygonFace(listOf(v[1], v[5], v[6], v[2]), Vec3(1f, 0f, 0f), theme.slabSideColor, metallic = 0.35f, shininess = 28f),
+        PolygonFace(listOf(v[4], v[0], v[3], v[7]), Vec3(-1f, 0f, 0f), theme.slabSideColor, metallic = 0.35f, shininess = 28f),
+        PolygonFace(listOf(v[4], v[5], v[1], v[0]), Vec3(0f, -1f, 0f), theme.slabSideColor, metallic = 0.35f, shininess = 28f)
     )
 
     renderFaces(faces, rx, ry, w, h)
@@ -372,6 +434,7 @@ private fun DrawScope.draw3DCellPedestal(
     rxRad: Float,
     ryRad: Float,
     isWinning: Boolean,
+    theme: BoardTheme,
     screenWidth: Float,
     screenHeight: Float
 ): List<Offset> {
@@ -390,8 +453,8 @@ private fun DrawScope.draw3DCellPedestal(
         Vec3(center.x - halfS, center.y + halfS, base)  // 7
     )
 
-    val topColor = if (isWinning) AccentVictory.copy(alpha = 0.28f) else CellBackground
-    val sideColor = if (isWinning) AccentVictory.copy(alpha = 0.45f) else SurfaceCardElevated
+    val topColor = if (isWinning) theme.victoryColor.copy(alpha = 0.32f) else theme.cellColor
+    val sideColor = if (isWinning) theme.victoryColor.copy(alpha = 0.55f) else theme.slabSideColor
 
     val faces = listOf(
         PolygonFace(listOf(localV[0], localV[1], localV[2], localV[3]), Vec3(0f, 0f, 1f), topColor, metallic = 0.4f, shininess = 32f),
@@ -417,6 +480,7 @@ private fun DrawScope.draw3DLaserBeam(
     endCell: Vec3,
     rxRad: Float,
     ryRad: Float,
+    victoryColor: Color,
     screenWidth: Float,
     screenHeight: Float
 ) {
@@ -425,19 +489,19 @@ private fun DrawScope.draw3DLaserBeam(
 
     // Layer 1: Volumetric neon aura
     drawLine(
-        color = AccentVictory.copy(alpha = 0.25f),
+        color = victoryColor.copy(alpha = 0.28f),
         start = p1,
         end = p2,
-        strokeWidth = 24f,
+        strokeWidth = 26f,
         cap = androidx.compose.ui.graphics.StrokeCap.Round
     )
 
     // Layer 2: Radiant laser glow
     drawLine(
-        color = AccentVictory.copy(alpha = 0.65f),
+        color = victoryColor.copy(alpha = 0.72f),
         start = p1,
         end = p2,
-        strokeWidth = 10f,
+        strokeWidth = 11f,
         cap = androidx.compose.ui.graphics.StrokeCap.Round
     )
 

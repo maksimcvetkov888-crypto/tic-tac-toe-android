@@ -173,3 +173,26 @@ data class Particle3D(
         life = (life - dt / maxLife).coerceAtLeast(0f)
     }
 }
+
+/**
+ * Ambient 3D floating dust/star mote with gentle harmonic drift.
+ */
+data class Star3D(
+    val initialPos: Vec3,
+    val size: Float,
+    val baseAlpha: Float,
+    val phaseOffset: Float,
+    val color: Color
+) {
+    fun currentPos(timeSec: Float): Vec3 {
+        val dx = sin(timeSec * 0.4f + phaseOffset) * 14f
+        val dy = cos(timeSec * 0.35f + phaseOffset * 1.3f) * 14f
+        val dz = sin(timeSec * 0.25f + phaseOffset * 0.7f) * 10f
+        return Vec3(initialPos.x + dx, initialPos.y + dy, initialPos.z + dz)
+    }
+
+    fun currentAlpha(timeSec: Float): Float {
+        val pulse = 0.65f + 0.35f * sin(timeSec * 1.8f + phaseOffset)
+        return (baseAlpha * pulse).coerceIn(0.1f, 0.95f)
+    }
+}
