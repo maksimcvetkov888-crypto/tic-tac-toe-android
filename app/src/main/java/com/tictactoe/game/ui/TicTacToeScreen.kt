@@ -41,11 +41,14 @@ import com.tictactoe.game.model.GameStatus
 import com.tictactoe.game.model.GameUiState
 import com.tictactoe.game.model.Player
 import com.tictactoe.game.ui.components.BorderBeamContainer
+import com.tictactoe.game.ui.components.FlameStreakIcon
+import com.tictactoe.game.ui.components.HapticsVectorIcon
 import com.tictactoe.game.ui.components.MagicMarqueeBar
 import com.tictactoe.game.ui.components.ShimmerButton
+import com.tictactoe.game.ui.components.SoundVectorIcon
+import com.tictactoe.game.ui.components.ThemeVectorIcon
+import com.tictactoe.game.ui.components.UndoVectorIcon
 import com.tictactoe.game.ui.components3d.Interactive3DBoard
-import com.tictactoe.game.ui.theme.AccentVictory
-import com.tictactoe.game.ui.theme.AccentVictoryGlow
 import com.tictactoe.game.ui.theme.BackgroundObsidian
 import com.tictactoe.game.ui.theme.BorderSubtle
 import com.tictactoe.game.ui.theme.SurfaceCard
@@ -89,7 +92,7 @@ fun TicTacToeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 1. Editorial Header
+            // 1. Editorial Header with Vector Icons
             EditorialHeader(
                 isSoundEnabled = state.isSoundEnabled,
                 isHapticsEnabled = state.isHapticsEnabled,
@@ -115,16 +118,17 @@ fun TicTacToeScreen(
                 modifier = Modifier.padding(vertical = 2.dp)
             )
 
-            // 3. Bento Scoreboard with Win Streak Counters
+            // 3. Bento Scoreboard with Vector Flame Streak Counters
             BentoScoreboard(state = state)
 
             // 4. Active Turn Card with Magic UI Border Beam
             ActiveTurnCard(state = state)
 
-            // 5. Camera Angle Presets & Undo Row
+            // 5. Camera Presets & Undo Button Row
             ControlsRow(
                 currentPreset = state.cameraPreset,
                 canUndo = state.canUndo,
+                theme = state.theme,
                 onSelectPreset = { preset ->
                     soundEffects.playClick()
                     viewModel.processIntent(GameIntent.SetCameraPreset(preset))
@@ -136,7 +140,7 @@ fun TicTacToeScreen(
                 }
             )
 
-            // 6. Real 3D Kinetic Game Board
+            // 6. Real 3D Responsive Kinetic Board
             Interactive3DBoard(
                 state = state,
                 onCellClick = { index ->
@@ -152,14 +156,16 @@ fun TicTacToeScreen(
                 }
             )
 
+            // 7. Tactical Control Hint
             Text(
-                text = "?? ???????? 3D ???? . ??????? ???: ????? ??????",
-                fontSize = 11.sp,
+                text = "???????? 3D ???? . ??????? ???????: ????? ??????",
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
                 color = TextMuted,
-                letterSpacing = 0.5.sp
+                letterSpacing = 1.sp
             )
 
-            // 7. Bottom Action Bar with Magic UI Shimmer Button
+            // 8. Bottom Action Bar with Magic UI Shimmer Button
             BottomActionBar(
                 onNewGame = {
                     if (state.isSoundEnabled) soundEffects.playClick()
@@ -218,31 +224,65 @@ private fun EditorialHeader(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Theme Selector Cycle Pill
-            ControlPill(
-                label = when (currentTheme) {
-                    BoardTheme.OBSIDIAN -> "?? Neo"
-                    BoardTheme.CYBER -> "?? Cyber"
-                    BoardTheme.SOLAR -> "?? Solar"
-                },
-                onClick = {
-                    val nextTheme = when (currentTheme) {
-                        BoardTheme.OBSIDIAN -> BoardTheme.CYBER
-                        BoardTheme.CYBER -> BoardTheme.SOLAR
-                        BoardTheme.SOLAR -> BoardTheme.OBSIDIAN
+            // Theme Selector Vector Pill
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(SurfaceCard)
+                    .border(1.dp, BorderSubtle, RoundedCornerShape(10.dp))
+                    .clickable {
+                        val nextTheme = when (currentTheme) {
+                            BoardTheme.OBSIDIAN -> BoardTheme.CYBER
+                            BoardTheme.CYBER -> BoardTheme.SOLAR
+                            BoardTheme.SOLAR -> BoardTheme.OBSIDIAN
+                        }
+                        onSelectTheme(nextTheme)
                     }
-                    onSelectTheme(nextTheme)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ThemeVectorIcon(theme = currentTheme, size = 14.dp)
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = when (currentTheme) {
+                            BoardTheme.OBSIDIAN -> "NEO"
+                            BoardTheme.CYBER -> "CYBER"
+                            BoardTheme.SOLAR -> "SOLAR"
+                        },
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
                 }
-            )
+            }
 
-            ControlPill(
-                label = if (isSoundEnabled) "??" else "??",
-                onClick = onToggleSound
-            )
-            ControlPill(
-                label = if (isHapticsEnabled) "??" else "??",
-                onClick = onToggleHaptics
-            )
+            // Sound Toggle Pill
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(SurfaceCard)
+                    .border(1.dp, BorderSubtle, RoundedCornerShape(10.dp))
+                    .clickable(onClick = onToggleSound)
+                    .padding(horizontal = 9.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                SoundVectorIcon(isEnabled = isSoundEnabled, color = if (isSoundEnabled) TextPrimary else TextMuted, size = 15.dp)
+            }
+
+            // Haptics Toggle Pill
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(SurfaceCard)
+                    .border(1.dp, BorderSubtle, RoundedCornerShape(10.dp))
+                    .clickable(onClick = onToggleHaptics)
+                    .padding(horizontal = 9.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                HapticsVectorIcon(isEnabled = isHapticsEnabled, color = if (isHapticsEnabled) TextPrimary else TextMuted, size = 15.dp)
+            }
         }
     }
 }
@@ -251,6 +291,7 @@ private fun EditorialHeader(
 private fun ControlsRow(
     currentPreset: CameraPreset,
     canUndo: Boolean,
+    theme: BoardTheme,
     onSelectPreset: (CameraPreset) -> Unit,
     onUndo: () -> Unit
 ) {
@@ -259,12 +300,13 @@ private fun ControlsRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Camera Presets
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        // Camera Preset Badges
+        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             CameraPreset.values().forEach { preset ->
                 val isSelected = preset == currentPreset
                 val bg = if (isSelected) SurfaceCard.copy(alpha = 0.95f) else Color.Transparent
-                val border = if (isSelected) TextSecondary.copy(alpha = 0.5f) else BorderSubtle
+                val border = if (isSelected) theme.xColor.copy(alpha = 0.6f) else BorderSubtle
+                val textColor = if (isSelected) TextPrimary else TextMuted
 
                 Box(
                     modifier = Modifier
@@ -272,19 +314,24 @@ private fun ControlsRow(
                         .background(bg)
                         .border(1.dp, border, RoundedCornerShape(6.dp))
                         .clickable { onSelectPreset(preset) }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 8.dp, vertical = 5.dp)
                 ) {
                     Text(
-                        text = preset.label,
+                        text = when (preset) {
+                            CameraPreset.ORBIT -> "3D ORBIT"
+                            CameraPreset.ISOMETRIC -> "?????????"
+                            CameraPreset.TOP_DOWN -> "??????"
+                        },
                         fontSize = 10.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) TextPrimary else TextMuted
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = textColor
                     )
                 }
             }
         }
 
-        // Undo Button
+        // Undo Button with Vector Icon
         if (canUndo) {
             Box(
                 modifier = Modifier
@@ -292,34 +339,21 @@ private fun ControlsRow(
                     .background(SurfaceCard)
                     .border(1.dp, BorderSubtle, RoundedCornerShape(6.dp))
                     .clickable(onClick = onUndo)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .padding(horizontal = 8.dp, vertical = 5.dp)
             ) {
-                Text(
-                    text = "? ??????",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    UndoVectorIcon(color = theme.xColor, size = 12.dp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "??????",
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun ControlPill(
-    label: String,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(SurfaceCard)
-            .border(1.dp, BorderSubtle, RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 9.dp, vertical = 6.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text = label, fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -335,6 +369,7 @@ private fun BentoScoreboard(state: GameUiState) {
             score = state.scores.xWins,
             streak = state.winStreakX,
             accentColor = state.theme.xColor,
+            victoryColor = state.theme.victoryColor,
             isActive = state.status is GameStatus.InProgress && state.currentPlayer == Player.X
         )
 
@@ -344,6 +379,7 @@ private fun BentoScoreboard(state: GameUiState) {
             score = state.scores.draws,
             streak = 0,
             accentColor = TextMuted,
+            victoryColor = state.theme.victoryColor,
             isActive = false
         )
 
@@ -353,6 +389,7 @@ private fun BentoScoreboard(state: GameUiState) {
             score = state.scores.oWins,
             streak = state.winStreakO,
             accentColor = state.theme.oColor,
+            victoryColor = state.theme.victoryColor,
             isActive = state.status is GameStatus.InProgress && state.currentPlayer == Player.O
         )
     }
@@ -365,6 +402,7 @@ private fun BentoStatCard(
     score: Int,
     streak: Int,
     accentColor: Color,
+    victoryColor: Color,
     isActive: Boolean
 ) {
     val borderColor = if (isActive) accentColor.copy(alpha = 0.6f) else BorderSubtle
@@ -388,8 +426,16 @@ private fun BentoStatCard(
                     color = accentColor
                 )
                 if (streak > 1) {
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text(text = "??$streak", fontSize = 9.sp, fontWeight = FontWeight.Black)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    FlameStreakIcon(color = victoryColor, size = 11.dp)
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = streak.toString(),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Black,
+                        color = victoryColor
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(2.dp))
@@ -416,9 +462,9 @@ private fun ActiveTurnCard(state: GameUiState) {
         }
         is GameStatus.Won -> {
             val winnerName = if (s.winner == Player.X) "????? 1 (X)" else "????? 2 (O)"
-            Triple("??????: $winnerName ??", state.theme.victoryColor, state.theme.victoryColor.copy(alpha = 0.6f))
+            Triple("??????: $winnerName", state.theme.victoryColor, state.theme.victoryColor.copy(alpha = 0.65f))
         }
-        GameStatus.Draw -> Triple("?????? ?????! ??", TextSecondary, TextMuted)
+        GameStatus.Draw -> Triple("?????? ?????", TextSecondary, TextMuted)
     }
 
     BorderBeamContainer(
@@ -452,8 +498,9 @@ private fun ActiveTurnCard(state: GameUiState) {
                     text = statusText,
                     color = statusColor,
                     fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
+                    letterSpacing = 1.sp
                 )
             }
         }

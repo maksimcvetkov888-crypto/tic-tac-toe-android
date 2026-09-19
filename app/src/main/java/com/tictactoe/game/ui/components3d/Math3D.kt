@@ -64,17 +64,18 @@ data class Vec3(val x: Float, val y: Float, val z: Float) {
     }
 
     /**
-     * Perspective projection from 3D space to 2D screen coordinates.
+     * Perspective projection from 3D space to 2D screen coordinates with responsive viewport scaling.
      */
     fun project(
         screenWidth: Float,
         screenHeight: Float,
         fov: Float = 500f,
-        cameraDistance: Float = 600f
+        cameraDistance: Float = 600f,
+        scaleMultiplier: Float = 1f
     ): ProjectedPoint {
         val viewZ = z + cameraDistance
         val safeZ = if (viewZ < 50f) 50f else viewZ
-        val factor = fov / safeZ
+        val factor = (fov / safeZ) * scaleMultiplier
         val screenX = screenWidth / 2f + x * factor
         val screenY = screenHeight / 2f + y * factor
         return ProjectedPoint(
@@ -103,24 +104,18 @@ data class PolygonFace(
  * Three.js & Blender style 3-Point Studio Lighting with Blinn-Phong Specular & Fresnel Rim.
  */
 object Lighting3D {
-    // 1. Key Light: warm main directional light
     val keyLightDir: Vec3 = Vec3(0.52f, -0.78f, 0.85f).normalize()
     const val keyIntensity: Float = 0.62f
 
-    // 2. Fill Light: cool subtle ambient filler from opposite side
     val fillLightDir: Vec3 = Vec3(-0.65f, 0.45f, 0.4f).normalize()
     const val fillIntensity: Float = 0.22f
 
-    // 3. Camera view direction in camera space
     val viewDir: Vec3 = Vec3(0f, 0f, 1f)
 
     const val ambientLight: Float = 0.28f
     const val rimIntensity: Float = 0.35f
     const val specularIntensity: Float = 0.55f
 
-    /**
-     * Computes final PBR shaded color for a polygon face.
-     */
     fun computeShading(
         normal: Vec3,
         baseColor: Color,
@@ -129,21 +124,17 @@ object Lighting3D {
     ): Color {
         val n = normal.normalize()
 
-        // Diffuse: Key + Fill
         val diffKey = max(0f, n.dot(keyLightDir)) * keyIntensity
         val diffFill = max(0f, n.dot(fillLightDir)) * fillIntensity
         val totalDiffuse = ambientLight + diffKey + diffFill
 
-        // Blinn-Phong Specular highlight
         val halfVec = (keyLightDir + viewDir).normalize()
         val nDotH = max(0f, n.dot(halfVec))
         val specFactor = nDotH.pow(shininess) * specularIntensity
 
-        // Fresnel Rim Glow: accentuates 3D contours
         val nDotV = max(0f, n.dot(viewDir))
         val fresnel = (1f - nDotV).pow(2.8f) * rimIntensity
 
-        // Composite components
         val r = (baseColor.red * totalDiffuse + specFactor * (1f - metallic * 0.5f) + fresnel * 0.85f).coerceIn(0f, 1f)
         val g = (baseColor.green * totalDiffuse + specFactor * (1f - metallic * 0.5f) + fresnel * 0.85f).coerceIn(0f, 1f)
         val b = (baseColor.blue * totalDiffuse + specFactor * (1f - metallic * 0.5f) + fresnel * 0.85f).coerceIn(0f, 1f)
@@ -162,12 +153,11 @@ data class Particle3D(
     var rotVelocity: Vec3,
     val size: Float,
     val color: Color,
-    var life: Float = 1f, // 1.0 -> 0.0
+    var life: Float = 1f,
     val maxLife: Float = 1f
 ) {
     fun update(dt: Float) {
         pos += velocity * dt
-        // Gravity acceleration downwards
         velocity = velocity.copy(y = velocity.y + 380f * dt)
         rotation += rotVelocity * dt
         life = (life - dt / maxLife).coerceAtLeast(0f)
@@ -185,14 +175,29 @@ data class Star3D(
     val color: Color
 ) {
     fun currentPos(timeSec: Float): Vec3 {
-        val dx = sin(timeSec * 0.4f + phaseOffset) * 14f
-        val dy = cos(timeSec * 0.35f + phaseOffset * 1.3f) * 14f
-        val dz = sin(timeSec * 0.25f + phaseOffset * 0.7f) * 10f
+        val dx = sin(timeSec * 0.4f + phaseOffset) * 16f
+        val dy = cos(timeSec * 0.35f + phaseOffset * 1.3f) * 16f
+        val dz = sin(timeSec * 0.25f + phaseOffset * 0.7f) * 12f
         return Vec3(initialPos.x + dx, initialPos.y + dy, initialPos.z + dz)
     }
 
     fun currentAlpha(timeSec: Float): Float {
         val pulse = 0.65f + 0.35f * sin(timeSec * 1.8f + phaseOffset)
         return (baseAlpha * pulse).coerceIn(0.1f, 0.95f)
+    }
+}
+
+/**
+ * Expanding circular 3D shockwave on the board platform upon token impact.
+ */
+data class Shockwave3D(
+    val center: Vec3,
+    val maxRadius: Float,
+    val color: Color,
+    var progress: Float = 0f
+) {
+    fun update(dt: Float): Boolean {
+        progress += dt * 2.4f
+        return progress < 1f
     }
 }

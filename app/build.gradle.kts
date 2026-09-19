@@ -12,8 +12,8 @@ android {
         applicationId = "com.tictactoe.game"
         minSdk = 24
         targetSdk = 35
-        versionCode = 6
-        versionName = "3.0.0-grandmaster"
+        versionCode = 7
+        versionName = "4.0.0-craft"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
