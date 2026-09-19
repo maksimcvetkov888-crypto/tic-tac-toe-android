@@ -1,22 +1,13 @@
 package com.tictactoe.game.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,13 +25,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,14 +40,11 @@ import com.tictactoe.game.model.GameUiState
 import com.tictactoe.game.model.Player
 import com.tictactoe.game.ui.components.BorderBeamContainer
 import com.tictactoe.game.ui.components.ShimmerButton
+import com.tictactoe.game.ui.components3d.Interactive3DBoard
 import com.tictactoe.game.ui.theme.AccentVictory
 import com.tictactoe.game.ui.theme.AccentVictoryGlow
 import com.tictactoe.game.ui.theme.BackgroundObsidian
-import com.tictactoe.game.ui.theme.BorderFocus
-import com.tictactoe.game.ui.theme.BorderMedium
 import com.tictactoe.game.ui.theme.BorderSubtle
-import com.tictactoe.game.ui.theme.CellBackground
-import com.tictactoe.game.ui.theme.CellBackgroundActive
 import com.tictactoe.game.ui.theme.PlayerOFire
 import com.tictactoe.game.ui.theme.PlayerOGlow
 import com.tictactoe.game.ui.theme.PlayerXAzure
@@ -82,11 +67,11 @@ fun TicTacToeScreen(
         when (state.status) {
             is GameStatus.Won -> {
                 if (state.isSoundEnabled) soundEffects.playWin()
-                if (state.isHapticsEnabled) soundEffects.vibrate(140)
+                if (state.isHapticsEnabled) soundEffects.vibrate(150)
             }
             is GameStatus.Draw -> {
                 if (state.isSoundEnabled) soundEffects.playDraw()
-                if (state.isHapticsEnabled) soundEffects.vibrate(70)
+                if (state.isHapticsEnabled) soundEffects.vibrate(80)
             }
             GameStatus.InProgress -> Unit
         }
@@ -101,7 +86,7 @@ fun TicTacToeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 14.dp),
+                .padding(horizontal = 18.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
@@ -122,19 +107,26 @@ fun TicTacToeScreen(
             // Bento Grid: Score & Stats
             BentoScoreboard(state = state)
 
-            // Dynamic Turn Indicator with Magic UI Border Beam
+            // Active Turn Card with Magic UI Border Beam
             ActiveTurnCard(state = state)
 
-            // 3x3 Tactile Game Board
-            TactileGameBoard(
+            // Real 3D Kinetic Game Board with Orbit Drag
+            Interactive3DBoard(
                 state = state,
                 onCellClick = { index ->
                     if (state.board[index] == null && !state.isFinished) {
                         if (state.isSoundEnabled) soundEffects.playMove(state.currentPlayer == Player.X)
-                        if (state.isHapticsEnabled) soundEffects.vibrate(35)
+                        if (state.isHapticsEnabled) soundEffects.vibrate(40)
                         viewModel.processIntent(GameIntent.CellClick(index))
                     }
                 }
+            )
+
+            Text(
+                text = "👆 Проведите пальцем, чтобы вращать 3D поле",
+                fontSize = 12.sp,
+                color = TextMuted,
+                letterSpacing = 0.5.sp
             )
 
             // Bottom Action Bar with Magic UI Shimmer Button
@@ -173,16 +165,16 @@ private fun EditorialHeader(
     ) {
         Column {
             Text(
-                text = "TIC • TAC • TOE",
+                text = "3D KINETIC EDITION",
                 letterSpacing = 2.sp,
-                style = MaterialTheme.typography.labelMedium.copy(
+                style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.Black,
                     color = TextMuted
                 )
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Крестики-Нолики",
+                text = "Крестики-Нолики 3D",
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary
@@ -230,7 +222,6 @@ private fun BentoScoreboard(state: GameUiState) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Player X Bento Card
         BentoStatCard(
             modifier = Modifier.weight(1f),
             label = "PLAYER X",
@@ -239,7 +230,6 @@ private fun BentoScoreboard(state: GameUiState) {
             isActive = state.status is GameStatus.InProgress && state.currentPlayer == Player.X
         )
 
-        // Draws Bento Card
         BentoStatCard(
             modifier = Modifier.weight(0.85f),
             label = "НИЧЬИ",
@@ -248,7 +238,6 @@ private fun BentoScoreboard(state: GameUiState) {
             isActive = false
         )
 
-        // Player O Bento Card
         BentoStatCard(
             modifier = Modifier.weight(1f),
             label = "PLAYER O",
@@ -275,7 +264,7 @@ private fun BentoStatCard(
             .clip(RoundedCornerShape(16.dp))
             .background(bgColor)
             .border(1.dp, borderColor, RoundedCornerShape(16.dp))
-            .padding(vertical = 12.dp, horizontal = 10.dp),
+            .padding(vertical = 10.dp, horizontal = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -286,10 +275,10 @@ private fun BentoStatCard(
                 letterSpacing = 1.sp,
                 color = accentColor
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = score.toString(),
-                fontSize = 26.sp,
+                fontSize = 24.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Black,
                 color = TextPrimary
@@ -327,7 +316,7 @@ private fun ActiveTurnCard(state: GameUiState) {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(SurfaceCard)
-                .padding(vertical = 12.dp, horizontal = 20.dp),
+                .padding(vertical = 10.dp, horizontal = 16.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(
@@ -355,131 +344,6 @@ private fun ActiveTurnCard(state: GameUiState) {
 }
 
 @Composable
-private fun TactileGameBoard(
-    state: GameUiState,
-    onCellClick: (Int) -> Unit
-) {
-    val winningLine = (state.status as? GameStatus.Won)?.line
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
-            .clip(RoundedCornerShape(20.dp))
-            .background(SurfaceCard)
-            .border(1.dp, BorderSubtle, RoundedCornerShape(20.dp))
-            .padding(10.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            for (row in 0..2) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    for (col in 0..2) {
-                        val index = row * 3 + col
-                        val isWinning = winningLine?.contains(index) == true
-                        val symbol = state.board[index]
-
-                        TactileCell(
-                            modifier = Modifier.weight(1f),
-                            player = symbol,
-                            isWinning = isWinning,
-                            onClick = { onCellClick(index) }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TactileCell(
-    modifier: Modifier = Modifier,
-    player: Player?,
-    isWinning: Boolean,
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val scale by animateFloatAsState(
-        targetValue = when {
-            isPressed -> 0.94f
-            isWinning -> 1.04f
-            else -> 1.0f
-        },
-        animationSpec = spring(
-            stiffness = Spring.StiffnessMedium,
-            dampingRatio = Spring.DampingRatioMediumBouncy
-        ),
-        label = "cellSpringScale"
-    )
-
-    val bgColor = when {
-        isWinning -> AccentVictory.copy(alpha = 0.18f)
-        isPressed -> CellBackgroundActive
-        else -> CellBackground
-    }
-
-    val borderColor = when {
-        isWinning -> AccentVictory
-        isPressed -> BorderFocus
-        else -> BorderSubtle
-    }
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .scale(scale)
-            .clip(RoundedCornerShape(14.dp))
-            .background(bgColor)
-            .border(
-                width = if (isWinning) 2.dp else 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(14.dp)
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        AnimatedVisibility(
-            visible = player != null,
-            enter = scaleIn(
-                initialScale = 0.2f,
-                animationSpec = spring(
-                    stiffness = 380f,
-                    dampingRatio = Spring.DampingRatioMediumBouncy
-                )
-            ) + fadeIn()
-        ) {
-            if (player != null) {
-                val color = if (player == Player.X) PlayerXAzure else PlayerOFire
-                val rotationAngle = if (player == Player.X) 0f else 0f
-
-                Text(
-                    text = player.symbol,
-                    fontSize = 50.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Black,
-                    color = color,
-                    modifier = Modifier.rotate(rotationAngle)
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun BottomActionBar(
     onNewGame: () -> Unit,
     onResetScore: () -> Unit
@@ -491,7 +355,7 @@ private fun BottomActionBar(
         ShimmerButton(
             onClick = onNewGame,
             shape = RoundedCornerShape(14.dp),
-            height = 54.dp
+            height = 52.dp
         ) {
             Text(
                 text = "НОВАЯ ИГРА",
@@ -502,7 +366,7 @@ private fun BottomActionBar(
             )
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(2.dp))
 
         TextButton(onClick = onResetScore) {
             Text(

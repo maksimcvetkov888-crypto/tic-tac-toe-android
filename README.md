@@ -1,16 +1,16 @@
-# 🎮 Tic-Tac-Toe (Anti-AI-Slop & Magic UI Edition)
+# 🕹️ Tic-Tac-Toe 3D (Full 3D Kinetic Edition)
 
-Премиальная нативная игра **«Крестики-Нолики»** для Android на **Jetpack Compose** и **Kotlin 2.0**, созданная по строгим стандартам **Anti-AI-Slop Design**, компонентов **Magic UI** и кинематики **Creative Motion**.
+Настоящая трёхмерная игра **«Крестики-Нолики»** для Android на **Jetpack Compose** и **Kotlin 2.0**, совмещающая полигональный 3D-движок, интерактивную орбитальную камеру, эстетику **Anti-AI-Slop** и компоненты **Magic UI**.
 
 ---
 
-## 🎨 Дизайн и UI/UX решения
-- **Anti-AI-Slop Palette**: Никаких шаблонных неоновых градиентов или безликих размытых карточек. Цветовая палитра Obsidian Zinc (`#09090B`, `#141417`, `#27272a`) с прецизионными 1px границами (`border-white/10`).
-- **Border Beam (Magic UI)**: Кинетический световой луч, непрерывно циркулирующий по периметру карточки текущего хода и победных ячеек (60fps GPU Canvas).
-- **Shimmer Button (Magic UI)**: Тактильная кнопка с кинетическим световым бликом и пружинной физикой нажатия.
-- **Bento Grid**: Информационная сетка статистики раундов с акцидентной типографикой.
-- **Tactile Kinematics (Creative Motion)**: Пружинное вдавливание ячеек (`scale: 0.94f`, `stiffness: 380`) и упругий овершут появления символов X и O.
-- **Процедурный звук и виброотклик**: Звуковой движок синтезирует щелчки и победные фанфары на лету через `ToneGenerator` (0 байт лишнего веса APK).
+## 🔮 3D Игровой движок и механики
+- **True 3D Geometry**: Каждая фигура X и O представлена 3D полигональным мешем с расчётом нормалей граней и динамическим направленным освещением (Lambertian Shading).
+- **Интерактивное вращение в 3D (Orbit Drag)**: Проводите пальцем в любой точке поля, чтобы свободно вращать 3D доску в трёхмерном пространстве с кинематической пружинной инерцией.
+- **3D тактильные постаменты**: Каждая ячейка — это 3D блок с фасками, физически утапливающийся вглубь по оси Z при касании.
+- **3D парящий лазер**: Объёмный неоновый луч парит в трёхмерном пространстве над победной тройкой.
+- **Magic UI Компоненты**: Border Beam по периметру активного хода, Shimmer Button с кинетическим световым бликом, Bento Grid для статистики.
+- **Процедурный звук**: Алгоритмическая генерация звуков без сторонних тяжелых файлов.
 
 ---
 
@@ -25,8 +25,10 @@
 
 ## 🛠 Технологический стек
 - **Язык**: Kotlin 2.0.0
-- **UI Toolkit**: Jetpack Compose (BOM 2024.06.00) + Material 3
+- **3D Engine**: Software Polygon Mesh Engine на Compose Canvas (Painter's Algorithm, Lambert Shading, 4x4 Perspective Matrix)
+- **UI Toolkit**: Jetpack Compose + Material 3 (BOM 2024.06.00)
 - **Компоненты**: Magic UI (Border Beam, Shimmer Button, Bento Grid)
-- **Архитектура**: Clean Architecture + MVI (Model-View-Intent)
-- **Android SDK**: minSdk 24 (Android 7.0+), targetSdk 35 (Android 15) Edge-to-Edge
-- **CI/CD**: GitHub Actions автоматическая сборка и публикация релизов
+- **MCP Сервер**: `@magicuidesign/mcp`
+- **Архитектура**: Clean MVI (Model-View-Intent)
+- **Android SDK**: minSdk 24 (Android 7.0+), targetSdk 35 (Android 15)
+- **CI/CD**: GitHub Actions автоматическая сборка и релизы
