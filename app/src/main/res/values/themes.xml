@@ -1,5 +1,5 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.TicTacToe" parent="Theme.Material3.Dark.NoActionBar">
+<resources>
+    <style name="Theme.TicTacToe" parent="android:Theme.Material.NoActionBar">
         <item name="android:statusBarColor">@color/bg_main</item>
         <item name="android:navigationBarColor">@color/bg_main</item>
         <item name="android:windowBackground">@color/bg_main</item>
