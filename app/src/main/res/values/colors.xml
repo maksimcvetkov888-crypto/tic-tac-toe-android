@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg_main">#0F141C</color>
+    <color name="bg_card">#1A2232</color>
+    <color name="bg_cell">#243046</color>
+    <color name="bg_cell_pressed">#2E3E5B</color>
+    <color name="bg_cell_winning">#1B5E20</color>
+    <color name="color_x">#00E5FF</color>
+    <color name="color_o">#FF5252</color>
+    <color name="color_accent">#7C4DFF</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#90A4AE</color>
+    <color name="border_cell">#37474F</color>
+</resources>

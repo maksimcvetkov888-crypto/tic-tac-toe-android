@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Крестики-Нолики</string>
+    <string name="player_x_title">Игрок X</string>
+    <string name="player_o_title">Игрок O</string>
+    <string name="draw_title">Ничьи</string>
+    <string name="turn_x">Ход: Игрок 1 (X)</string>
+    <string name="turn_o">Ход: Игрок 2 (O)</string>
+    <string name="win_x">Победил Игрок 1 (X)! 🎉</string>
+    <string name="win_o">Победил Игрок 2 (O)! 🎉</string>
+    <string name="game_draw">Боевая ничья! 🤝</string>
+    <string name="btn_new_game">Новая игра</string>
+    <string name="btn_reset_score">Сброс счёта</string>
+    <string name="mode_subtitle">2 игрока на одном устройстве</string>
+</resources>
