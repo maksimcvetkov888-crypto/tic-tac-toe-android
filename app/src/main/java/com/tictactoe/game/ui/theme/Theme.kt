@@ -5,11 +5,11 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
 private val DarkColorScheme = darkColorScheme(
-    primary = AccentPurple,
-    secondary = PlayerXCyan,
-    tertiary = PlayerOCoral,
-    background = BackgroundDark,
-    surface = CardDark,
+    primary = PlayerXAzure,
+    secondary = PlayerOFire,
+    tertiary = AccentVictory,
+    background = BackgroundObsidian,
+    surface = SurfaceCard,
     onBackground = TextPrimary,
     onSurface = TextPrimary
 )
