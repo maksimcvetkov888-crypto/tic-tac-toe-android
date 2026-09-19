@@ -55,7 +55,7 @@ class GameViewModel : ViewModel() {
 
     private fun handleSetGameMode(mode: GameMode) {
         val commentary = if (mode == GameMode.VS_AI) {
-            "[РЕЖИМ] БИТВА С 3D ИИ • ВАШ ХОД (Х)"
+            "[РЕЖИМ] БИТВА С 3D ИИ | ВАШ ХОД (Х)"
         } else {
             "[РЕЖИМ] 2 ИГРОКА НА ОДНОМ УСТРОЙСТВЕ"
         }
@@ -208,7 +208,7 @@ class GameViewModel : ViewModel() {
                 scores = current.scores.copy(draws = current.scores.draws + 1),
                 moveHistory = history,
                 isAiThinking = false,
-                commentaryText = "[НИЧЬЯ] БОЕВАЯ НИЧЬЯ • ПОЛНЫЙ ПАРИТЕТ СТОРОН"
+                commentaryText = "[НИЧЬЯ] БОЕВАЯ НИЧЬЯ | ПОЛНЫЙ ПАРИТЕТ СТОРОН"
             )
         }
     }
@@ -229,7 +229,7 @@ class GameViewModel : ViewModel() {
                     board = newBoard,
                     currentPlayer = Player.X,
                     moveHistory = newHistory,
-                    commentaryText = "[ОТМЕНА] ХОД ОТМЕНЁН • ВАШ ХОД (Х)"
+                    commentaryText = "[ОТМЕНА] ХОД ОТМЕНЁН | ВАШ ХОД (Х)"
                 )
             }
         } else {
@@ -243,7 +243,7 @@ class GameViewModel : ViewModel() {
                     board = newBoard,
                     currentPlayer = lastMove.player,
                     moveHistory = newHistory,
-                    commentaryText = "[ОТМЕНА] ХОД ОТМЕНЁН • СНОВА ХОДИТ ИГРОК ${lastMove.player.symbol}"
+                    commentaryText = "[ОТМЕНА] ХОД ОТМЕНЁН | СНОВА ХОДИТ ИГРОК ${lastMove.player.symbol}"
                 )
             }
         }
@@ -259,9 +259,9 @@ class GameViewModel : ViewModel() {
         }
 
         return when (index) {
-            4 -> "[ЦЕНТР] ЦЕНТР ЗАХВАЧЕН ИГРОКОМ ${player.symbol} • СТРАТЕГИЧЕСКИЙ КОНТРОЛЬ"
-            0, 2, 6, 8 -> "[ФЛАНГ] УГЛОВАЯ ПОЗИЦИЯ • ИГРОК ${player.symbol} ВЫСТРАИВАЕТ КЛЕЩИ"
-            else -> "[ХОД] ТОЧНЫЙ ХОД ИГРОКА ${player.symbol} • СЛЕДУЮЩИЙ ХОД ${player.next().symbol}"
+            4 -> "[ЦЕНТР] ЦЕНТР ЗАХВАЧЕН ИГРОКОМ ${player.symbol} | СТРАТЕГИЧЕСКИЙ КОНТРОЛЬ"
+            0, 2, 6, 8 -> "[ФЛАНГ] УГЛОВАЯ ПОЗИЦИЯ | ИГРОК ${player.symbol} ВЫСТРАИВАЕТ КЛЕЩИ"
+            else -> "[ХОД] ТОЧНЫЙ ХОД ИГРОКА ${player.symbol} | СЛЕДУЮЩИЙ ХОД ${player.next().symbol}"
         }
     }
 
@@ -285,7 +285,7 @@ class GameViewModel : ViewModel() {
                 status = GameStatus.InProgress,
                 moveHistory = emptyList(),
                 isAiThinking = false,
-                commentaryText = "[МАТЧ] РАУНД НАЧАТ • ПЕРВЫМ ХОДИТ ИГРОК ${nextStarter.symbol}"
+                commentaryText = "[МАТЧ] РАУНД НАЧАТ | ПЕРВЫМ ХОДИТ ИГРОК ${nextStarter.symbol}"
             )
         }
     }
@@ -303,7 +303,7 @@ class GameViewModel : ViewModel() {
                 winStreakX = 0,
                 winStreakO = 0,
                 isAiThinking = false,
-                commentaryText = "[ТУРНИР] СЧЁТ СБРОШЕН • СТАРТ НОВОГО СЕЗОНА"
+                commentaryText = "[ТУРНИР] СЧЁТ СБРОШЕН | СТАРТ НОВОГО СЕЗОНА"
             )
         }
     }

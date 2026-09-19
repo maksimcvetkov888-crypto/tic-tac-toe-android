@@ -190,7 +190,7 @@ fun TicTacToeScreen(
 
             // 9. Tactical Control Hint
             Text(
-                text = "ВРАЩАЙТЕ 3D ПОЛЕ • ДВОЙНОЕ НАЖАТИЕ: СБРОС КАМЕРЫ",
+                text = "ВРАЩАЙТЕ 3D ПОЛЕ | ДВОЙНОЕ НАЖАТИЕ: СБРОС КАМЕРЫ",
                 fontSize = 9.5.sp,
                 fontFamily = FontFamily.Monospace,
                 color = TextMuted,

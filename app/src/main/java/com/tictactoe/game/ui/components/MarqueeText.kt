@@ -105,7 +105,7 @@ fun MagicMarqueeBar(
                 ) {
                     repeat(3) {
                         Text(
-                            text = "$text   .   ",
+                            text = "$text   |   ",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             fontFamily = FontFamily.Monospace,

@@ -46,22 +46,24 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
-          tag_name: v5.0.0
-          name: Release v5.0.0 - Master Minimax AI & Zero-Allocation 3D Performance
+          tag_name: v5.0.2
+          name: Release v5.0.2 - Zero Question Marks & Master Minimax AI
           body: |
-            ## 🕹️ Release v2.0.0: Full 3D Kinetic Edition
+            ## Релиз v5.0.2: Грандмастер 3D & Безупречный рендеринг
 
-            ### 🔮 Настоящий 3D игровой движок (Jetpack Compose Canvas):
-            - **Полноценная 3D геометрия**: Полигональные 3D меши крестиков и ноликов с расчётом нормалей граней, освещением по Ламберту (Lambertian Diffuse + Ambient) и Z-сортировкой (Painter's Algorithm).
-            - **Интерактивное 3D вращение (Orbit Drag)**: Проводите пальцем по экрану, чтобы осматривать игровое поле с любого трёхмерного ракурса.
-            - **3D тактильные постаменты**: Ячейки выполнены в виде объёмных 3D блоков с фасками. При нажатии ячейка физически утапливается по оси Z.
-            - **3D парящий победный лазер**: Трёхмерный световой луч, парящий над выигрышной комбинацией.
-            - **Magic UI & Anti-AI-Slop Craft**: Border Beam, Shimmer Button, Bento Grid, моноширинная акцидентная типографика и палитра Obsidian Zinc (`#09090B`).
+            ### 3D Игровой движок (Jetpack Compose Canvas):
+            - Полноценная 3D геометрия: полигональные меши X и O с освещением по Ламберту и Z-сортировкой.
+            - Интерактивная 3D орбитальная камера (вращение жестами пальца, двойной тап для сброса).
+            - Тактильные 3D постаменты ячеек с физическим утапливанием по оси Z при нажатии.
+            - Неоновые волны (Shockwaves) и парящий луч победы.
+            - Magic UI: Border Beam, Shimmer Button, Bento Grid, моноширинная акцидентная типографика.
+            - ИИ Грандмастер: алгоритм Minimax с Alpha-Beta отсечением, математически исключающий поражения.
+            - 100% чистый рендеринг без знаков вопроса на любых версиях Android и в GitHub Release.
 
-            ### 📥 Установка:
-            1. Скачайте `tic-tac-toe.apk` ниже.
+            ### Установка:
+            1. Скачайте файл tic-tac-toe.apk ниже.
             2. Установите на ваше Android-устройство.
-            3. Приятной трёхмерной игры вдвоём на одном экране!
+            3. Приятной игры!
           files: output/tic-tac-toe.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
